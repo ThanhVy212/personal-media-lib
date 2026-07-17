@@ -1,14 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
-import UploadZone from './components/UploadZone';
-import Sidebar from './components/Sidebar';
-import ImageViewer from './components/ImageViewer';
-import VideoPlayer from './components/VideoPlayer';
-import { Menu, FolderOpen, AlertCircle, FilePlus, Sparkles } from 'lucide-react';
-import './App.css';
+import React, { useState, useEffect, useRef } from "react";
+import UploadZone from "./components/UploadZone";
+import Sidebar from "./components/Sidebar";
+import ImageViewer from "./components/ImageViewer";
+import VideoPlayer from "./components/VideoPlayer";
+import {
+  Menu,
+  FolderOpen,
+  AlertCircle,
+  FilePlus,
+  Sparkles,
+} from "lucide-react";
+import "./App.css";
 
 export default function App() {
   const [mediaList, setMediaList] = useState([]);
-  const [activeIndex, setActiveIndex] = useState('upload');
+  const [activeIndex, setActiveIndex] = useState("upload");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [toast, setToast] = useState(null);
   const toastTimeoutRef = useRef(null);
@@ -16,13 +22,13 @@ export default function App() {
   // Clean up object URLs on unmount to avoid browser memory leaks
   useEffect(() => {
     return () => {
-      mediaList.forEach(item => {
+      mediaList.forEach((item) => {
         URL.revokeObjectURL(item.url);
       });
     };
   }, []);
 
-  const showToast = (message, type = 'info') => {
+  const showToast = (message, type = "info") => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     setToast({ message, type });
     toastTimeoutRef.current = setTimeout(() => {
@@ -31,25 +37,28 @@ export default function App() {
   };
 
   const handleFilesSelected = (newFiles) => {
-    const items = newFiles.map(file => ({
+    const items = newFiles.map((file) => ({
       id: Math.random().toString(36).substring(2, 9) + Date.now(),
       file,
       name: file.name,
       url: URL.createObjectURL(file),
-      type: file.type.startsWith('video/') ? 'video' : 'image',
-      size: file.size
+      type: file.type.startsWith("video/") ? "video" : "image",
+      size: file.size,
     }));
 
-    setMediaList(prevList => {
+    setMediaList((prevList) => {
       const updated = [...prevList, ...items];
-      // If we are on the upload zone or nothing selected, select the first newly added item
-      if (activeIndex === 'upload' || activeIndex === null) {
+
+      if (activeIndex === null) {
         setActiveIndex(prevList.length);
       }
       return updated;
     });
 
-    showToast(`Added ${items.length} file${items.length > 1 ? 's' : ''} to library`, 'success');
+    showToast(
+      `Added ${items.length} file${items.length > 1 ? "s" : ""} to library`,
+      "success",
+    );
   };
 
   const handleDelete = (indexToDelete) => {
@@ -62,7 +71,7 @@ export default function App() {
     setMediaList(newList);
 
     if (newList.length === 0) {
-      setActiveIndex('upload');
+      setActiveIndex("upload");
     } else if (indexToDelete === activeIndex) {
       // If we delete the active element, select the next available one
       setActiveIndex(Math.min(indexToDelete, newList.length - 1));
@@ -71,28 +80,32 @@ export default function App() {
       setActiveIndex(activeIndex - 1);
     }
 
-    showToast(`Removed "${item?.name || 'file'}"`, 'info');
+    showToast(`Removed "${item?.name || "file"}"`, "info");
   };
 
   const handleClearAll = () => {
-    if (window.confirm("Are you sure you want to clear the entire library? All files will be released from browser memory.")) {
-      mediaList.forEach(item => {
+    if (
+      window.confirm(
+        "Are you sure you want to clear the entire library? All files will be released from browser memory.",
+      )
+    ) {
+      mediaList.forEach((item) => {
         URL.revokeObjectURL(item.url);
       });
       setMediaList([]);
-      setActiveIndex('upload');
-      showToast("Library cleared", 'info');
+      setActiveIndex("upload");
+      showToast("Library cleared", "info");
     }
   };
 
   const handlePrev = () => {
-    if (activeIndex !== 'upload' && activeIndex > 0) {
+    if (activeIndex !== "upload" && activeIndex > 0) {
       setActiveIndex(activeIndex - 1);
     }
   };
 
   const handleNext = () => {
-    if (activeIndex !== 'upload' && activeIndex < mediaList.length - 1) {
+    if (activeIndex !== "upload" && activeIndex < mediaList.length - 1) {
       setActiveIndex(activeIndex + 1);
     }
   };
@@ -101,15 +114,18 @@ export default function App() {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  const activeMedia = activeIndex !== null && activeIndex !== 'upload' ? mediaList[activeIndex] : null;
+  const activeMedia =
+    activeIndex !== null && activeIndex !== "upload"
+      ? mediaList[activeIndex]
+      : null;
 
   return (
     <div className="app-container">
       {/* Top Header Bar */}
       <header className="app-header glassmorphism">
         <div className="logo-section">
-          <button 
-            className="btn btn-icon btn-secondary" 
+          <button
+            className="btn btn-icon btn-secondary"
             onClick={toggleSidebar}
             title={isSidebarOpen ? "Hide Sidebar" : "Show Sidebar"}
           >
@@ -127,11 +143,11 @@ export default function App() {
               Viewing: {activeMedia.name}
             </span>
           )}
-          <button 
-            className="btn btn-secondary" 
+          <button
+            className="btn btn-secondary"
             onClick={() => {
               // Trigger upload trigger via Sidebar file element
-              const addBtn = document.querySelector('.add-btn');
+              const addBtn = document.querySelector(".add-btn");
               if (addBtn) addBtn.click();
             }}
           >
@@ -143,7 +159,7 @@ export default function App() {
 
       {/* Main Workspace split */}
       <div className="app-workspace">
-        <Sidebar 
+        <Sidebar
           mediaList={mediaList}
           activeIndex={activeIndex}
           onSelect={setActiveIndex}
@@ -155,26 +171,30 @@ export default function App() {
         />
 
         <main className="app-viewport">
-          {activeIndex === 'upload' ? (
+          {activeIndex === "upload" ? (
             <UploadZone onFilesSelected={handleFilesSelected} />
           ) : activeMedia ? (
-            activeMedia.type === 'image' ? (
-              <ImageViewer 
+            activeMedia.type === "image" ? (
+              <ImageViewer
                 src={activeMedia.url}
                 name={activeMedia.name}
                 onPrev={handlePrev}
                 onNext={handleNext}
-                hasPrev={activeIndex !== 'upload' && activeIndex > 0}
-                hasNext={activeIndex !== 'upload' && activeIndex < mediaList.length - 1}
+                hasPrev={activeIndex !== "upload" && activeIndex > 0}
+                hasNext={
+                  activeIndex !== "upload" && activeIndex < mediaList.length - 1
+                }
               />
             ) : (
-              <VideoPlayer 
+              <VideoPlayer
                 src={activeMedia.url}
                 name={activeMedia.name}
                 onPrev={handlePrev}
                 onNext={handleNext}
-                hasPrev={activeIndex !== 'upload' && activeIndex > 0}
-                hasNext={activeIndex !== 'upload' && activeIndex < mediaList.length - 1}
+                hasPrev={activeIndex !== "upload" && activeIndex > 0}
+                hasNext={
+                  activeIndex !== "upload" && activeIndex < mediaList.length - 1
+                }
               />
             )
           ) : (
