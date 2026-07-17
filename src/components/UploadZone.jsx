@@ -1,9 +1,19 @@
 import React, { useState, useRef } from 'react';
 import { Upload, Image, Video, FileText } from 'lucide-react';
 
-export default function UploadZone({ onFilesSelected }) {
+export default function UploadZone({ onFilesSelected, mediaList = [] }) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
+
+  const formatSize = (bytes) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  };
+
+  const uploadingFiles = mediaList.filter((item) => item.status === "uploading");
 
   const processFiles = (files) => {
     if (!files || files.length === 0) return;
@@ -89,15 +99,48 @@ export default function UploadZone({ onFilesSelected }) {
         </div>
       </div>
 
+      {uploadingFiles.length > 0 && (
+        <div className="active-uploads-container animate-fade-in glassmorphism">
+          <div className="uploads-header">
+            <h3>Uploading {uploadingFiles.length} file{uploadingFiles.length > 1 ? 's' : ''}...</h3>
+            <span className="upload-loader-pulse"></span>
+          </div>
+          <div className="uploads-list">
+            {uploadingFiles.map((file) => (
+              <div key={file.id} className="upload-item">
+                <div className="upload-item-info">
+                  <span className="upload-item-name" title={file.name}>{file.name}</span>
+                  <span className="upload-item-meta">
+                    {formatSize(file.size)} • {file.speed} MB/s
+                  </span>
+                </div>
+                <div className="upload-item-progress-container">
+                  <div className="upload-item-progress-bar">
+                    <div 
+                      className="upload-item-progress-fill" 
+                      style={{ width: `${file.progress}%` }}
+                    />
+                  </div>
+                  <span className="upload-item-percentage">{Math.round(file.progress)}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <style>{`
         .upload-screen {
           display: flex;
+          flex-direction: column;
           align-items: center;
           justify-content: center;
           width: 100%;
           height: 100%;
           padding: 24px;
           background: radial-gradient(circle at center, var(--bg-card) 0%, var(--bg-darker) 100%);
+          overflow-y: auto;
+          gap: 24px;
         }
 
         .upload-card {
@@ -256,6 +299,111 @@ export default function UploadZone({ onFilesSelected }) {
           width: 100%;
           padding-top: 24px;
           margin-top: 12px;
+        }
+
+        .active-uploads-container {
+          width: 100%;
+          max-width: 560px;
+          padding: 20px 24px;
+          border-radius: 16px;
+          background: rgba(24, 27, 40, 0.6);
+          border: 1px solid var(--border);
+          box-shadow: var(--shadow-md);
+        }
+
+        .uploads-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
+          border-bottom: 1px solid var(--border);
+          padding-bottom: 10px;
+        }
+
+        .uploads-header h3 {
+          font-size: 0.95rem;
+          font-weight: 600;
+          color: var(--text-primary);
+        }
+
+        .upload-loader-pulse {
+          width: 8px;
+          height: 8px;
+          background-color: var(--accent);
+          border-radius: 50%;
+          box-shadow: 0 0 8px var(--accent);
+          animation: pulse 1.5s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+          0% { transform: scale(0.8); opacity: 0.5; }
+          50% { transform: scale(1.2); opacity: 1; }
+          100% { transform: scale(0.8); opacity: 0.5; }
+        }
+
+        .uploads-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          max-height: 200px;
+          overflow-y: auto;
+          padding-right: 4px;
+        }
+
+        .upload-item {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .upload-item-info {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 0.8rem;
+        }
+
+        .upload-item-name {
+          color: var(--text-primary);
+          font-weight: 500;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 70%;
+        }
+
+        .upload-item-meta {
+          color: var(--text-muted);
+          font-size: 0.75rem;
+        }
+
+        .upload-item-progress-container {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .upload-item-progress-bar {
+          flex-grow: 1;
+          height: 6px;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 9999px;
+          overflow: hidden;
+        }
+
+        .upload-item-progress-fill {
+          height: 100%;
+          background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+          border-radius: 9999px;
+          transition: width 0.15s ease;
+        }
+
+        .upload-item-percentage {
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: var(--text-secondary);
+          width: 32px;
+          text-align: right;
         }
       `}</style>
     </div>

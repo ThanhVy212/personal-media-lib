@@ -2,7 +2,6 @@ import React, { useState, useRef } from "react";
 import {
   Trash2,
   Film,
-  Image as ImageIcon,
   Plus,
   X,
   Search,
@@ -88,6 +87,19 @@ export default function Sidebar({
         </button>
       </div>
 
+      <div
+        className={`upload-zone-link ${activeIndex === "upload" ? "active" : ""}`}
+        onClick={() => onSelect("upload")}
+      >
+        <div className="upload-link-icon-container">
+          <Upload size={18} />
+        </div>
+        <div className="upload-link-text">
+          <span className="title">Upload Zone</span>
+          <span className="desc">Drag & drop or browse</span>
+        </div>
+      </div>
+
       <div className="search-box-container">
         <Search className="search-icon" size={16} />
         <input
@@ -105,21 +117,6 @@ export default function Sidebar({
       </div>
 
       <div className="media-list-container">
-        <div
-          className={`upload-zone-link ${activeIndex === 'upload' ? 'active' : ''}`}
-          onClick={() => onSelect('upload')}
-        >
-          <div className="upload-link-icon-container">
-            <Upload size={18} />
-          </div>
-          <div className="upload-link-text">
-            <span className="title">Upload Zone</span>
-            <span className="desc">Drag & drop or browse</span>
-          </div>
-        </div>
-
-        <div className="sidebar-divider" />
-
         {filteredMedia.length === 0 ? (
           <div className="empty-search">
             {searchQuery ? "No files match search" : "No files uploaded"}
@@ -128,15 +125,42 @@ export default function Sidebar({
           filteredMedia.map((item) => {
             const listIndex = mediaList.findIndex((m) => m.id === item.id);
             const isActive = listIndex === activeIndex;
+            const isUploading = item.status === "uploading";
 
             return (
               <div
                 key={item.id}
-                className={`media-item ${isActive ? "active" : ""}`}
+                className={`media-item ${isActive ? "active" : ""} ${isUploading ? "uploading animate-pulse-border" : ""}`}
                 onClick={() => onSelect(listIndex)}
               >
                 <div className="thumbnail-wrapper">
-                  {item.type === "image" ? (
+                  {isUploading ? (
+                    <div className="sidebar-uploading-spinner-container">
+                      <svg
+                        className="sidebar-uploading-spinner"
+                        viewBox="0 0 36 36"
+                      >
+                        <circle
+                          className="path-bg"
+                          cx="18"
+                          cy="18"
+                          r="14"
+                          fill="none"
+                          strokeWidth="3"
+                        ></circle>
+                        <circle
+                          className="path-fg"
+                          cx="18"
+                          cy="18"
+                          r="14"
+                          fill="none"
+                          strokeWidth="3"
+                          strokeDasharray="88"
+                          strokeDashoffset={88 - (88 * item.progress) / 100}
+                        ></circle>
+                      </svg>
+                    </div>
+                  ) : item.type === "image" ? (
                     <img
                       src={item.url}
                       alt={item.name}
@@ -160,22 +184,30 @@ export default function Sidebar({
                   <span className="media-name" title={item.name}>
                     {item.name}
                   </span>
-                  <span className="media-meta">
-                    {item.type === "image" ? "Image" : "Video"} •{" "}
-                    {formatSize(item.size)}
-                  </span>
+                  {isUploading ? (
+                    <span className="media-meta upload-progress-text">
+                      Uploading ({Math.round(item.progress)}%)
+                    </span>
+                  ) : (
+                    <span className="media-meta">
+                      {item.type === "image" ? "Image" : "Video"} •{" "}
+                      {formatSize(item.size)}
+                    </span>
+                  )}
                 </div>
 
-                <button
-                  className="btn-delete"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(listIndex);
-                  }}
-                  title="Remove file"
-                >
-                  <Trash2 size={14} />
-                </button>
+                {!isUploading && (
+                  <button
+                    className="btn-delete"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(listIndex);
+                    }}
+                    title="Remove file"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
             );
           })
@@ -388,6 +420,41 @@ export default function Sidebar({
         .media-meta {
           font-size: 0.75rem;
           color: var(--text-muted);
+        }
+
+        .upload-progress-text {
+          color: var(--accent) !important;
+          font-weight: 600;
+        }
+
+        .media-item.uploading {
+          background: rgba(6, 182, 212, 0.02);
+          border-color: rgba(6, 182, 212, 0.1);
+        }
+
+        .sidebar-uploading-spinner-container {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(0, 0, 0, 0.2);
+        }
+
+        .sidebar-uploading-spinner {
+          width: 28px;
+          height: 28px;
+          transform: rotate(-90deg);
+        }
+
+        .sidebar-uploading-spinner .path-bg {
+          stroke: rgba(255, 255, 255, 0.05);
+        }
+
+        .sidebar-uploading-spinner .path-fg {
+          stroke: var(--accent);
+          stroke-linecap: round;
+          transition: stroke-dashoffset 0.15s ease;
         }
 
         .btn-delete {

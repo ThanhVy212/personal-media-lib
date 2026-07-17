@@ -36,29 +36,80 @@ export default function App() {
     }, 3000);
   };
 
+  const formatSize = (bytes) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  };
+
   const handleFilesSelected = (newFiles) => {
-    const items = newFiles.map((file) => ({
-      id: Math.random().toString(36).substring(2, 9) + Date.now(),
-      file,
-      name: file.name,
-      url: URL.createObjectURL(file),
-      type: file.type.startsWith("video/") ? "video" : "image",
-      size: file.size,
-    }));
+    const items = newFiles.map((file) => {
+      const speed = parseFloat((Math.random() * 6 + 2).toFixed(1)); // MB/s (2 to 8)
+      return {
+        id: Math.random().toString(36).substring(2, 9) + Date.now(),
+        file,
+        name: file.name,
+        url: URL.createObjectURL(file),
+        type: file.type.startsWith("video/") ? "video" : "image",
+        size: file.size,
+        status: "uploading",
+        progress: 0,
+        speed,
+      };
+    });
 
     setMediaList((prevList) => {
       const updated = [...prevList, ...items];
-
-      if (activeIndex === null) {
-        setActiveIndex(prevList.length);
+      // If we don't have any active selection, or if we were on "upload" page and just started,
+      // let's keep activeIndex as is, or select first uploading item if activeIndex is null.
+      if (activeIndex === null && updated.length > 0) {
+        return updated;
       }
       return updated;
     });
 
     showToast(
-      `Added ${items.length} file${items.length > 1 ? "s" : ""} to library`,
-      "success",
+      `Uploading ${items.length} file${items.length > 1 ? "s" : ""}...`,
+      "info",
     );
+
+    // Simulate upload for each item
+    items.forEach((item) => {
+      const sizeInMB = item.size / (1024 * 1024);
+      // Duration based on size and speed. Make it at least 1.5 seconds, max 6 seconds
+      const durationMs = Math.max(1500, Math.min(6000, (sizeInMB / item.speed) * 1000));
+      const intervalTime = 150;
+      const totalSteps = durationMs / intervalTime;
+      const baseStep = 100 / totalSteps;
+      
+      let currentProgress = 0;
+      const interval = setInterval(() => {
+        // Add random jitter to step sizes
+        const jitter = Math.random() * 8 - 3; // skewed positive
+        currentProgress = Math.min(100, currentProgress + baseStep + jitter);
+        
+        if (currentProgress >= 100) {
+          currentProgress = 100;
+          clearInterval(interval);
+          
+          setMediaList((prevList) =>
+            prevList.map((m) =>
+              m.id === item.id ? { ...m, progress: 100, status: "completed" } : m
+            )
+          );
+          
+          showToast(`Uploaded "${item.name}"`, "success");
+        } else {
+          setMediaList((prevList) =>
+            prevList.map((m) =>
+              m.id === item.id ? { ...m, progress: currentProgress } : m
+            )
+          );
+        }
+      }, intervalTime);
+    });
   };
 
   const handleDelete = (indexToDelete) => {
@@ -172,9 +223,36 @@ export default function App() {
 
         <main className="app-viewport">
           {activeIndex === "upload" ? (
-            <UploadZone onFilesSelected={handleFilesSelected} />
+            <UploadZone onFilesSelected={handleFilesSelected} mediaList={mediaList} />
           ) : activeMedia ? (
-            activeMedia.type === "image" ? (
+            activeMedia.status === "uploading" ? (
+              <div className="media-uploading-viewport animate-fade-in">
+                <div className="uploading-viewport-card glassmorphism animate-pulse-border">
+                  <div className="viewport-spinner-container">
+                    <svg className="viewport-spinner" viewBox="0 0 50 50">
+                      <circle className="path-bg" cx="25" cy="25" r="20" fill="none" strokeWidth="4"></circle>
+                      <circle 
+                        className="path-fg" 
+                        cx="25" 
+                        cy="25" 
+                        r="20" 
+                        fill="none" 
+                        strokeWidth="4"
+                        strokeDasharray="125"
+                        strokeDashoffset={125 - (125 * activeMedia.progress) / 100}
+                      ></circle>
+                    </svg>
+                    <span className="viewport-progress-percentage">{Math.round(activeMedia.progress)}%</span>
+                  </div>
+                  <h3 className="uploading-title">Uploading "{activeMedia.name}"</h3>
+                  <p className="uploading-desc">Processing and optimizing media in browser...</p>
+                  <div className="viewport-upload-meta">
+                    <span>Size: {formatSize(activeMedia.size)}</span>
+                    <span>Speed: {activeMedia.speed} MB/s</span>
+                  </div>
+                </div>
+              </div>
+            ) : activeMedia.type === "image" ? (
               <ImageViewer
                 src={activeMedia.url}
                 name={activeMedia.name}
@@ -237,6 +315,87 @@ export default function App() {
           color: var(--text-secondary);
           text-align: center;
           padding: 24px;
+        }
+
+        .media-uploading-viewport {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
+          padding: 24px;
+        }
+
+        .uploading-viewport-card {
+          width: 100%;
+          max-width: 400px;
+          padding: 40px 32px;
+          border-radius: 20px;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          box-shadow: var(--shadow-lg);
+          border: 1px solid var(--border);
+          background: rgba(24, 27, 40, 0.6);
+        }
+
+        .viewport-spinner-container {
+          position: relative;
+          width: 100px;
+          height: 100px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 16px;
+        }
+
+        .viewport-spinner {
+          width: 100%;
+          height: 100%;
+          transform: rotate(-90deg);
+        }
+
+        .viewport-spinner .path-bg {
+          stroke: rgba(255, 255, 255, 0.05);
+        }
+
+        .viewport-spinner .path-fg {
+          stroke: var(--primary);
+          stroke-linecap: round;
+          transition: stroke-dashoffset 0.15s ease;
+        }
+
+        .viewport-progress-percentage {
+          position: absolute;
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: var(--text-primary);
+        }
+
+        .uploading-title {
+          font-size: 1.2rem;
+          font-weight: 600;
+          color: var(--text-primary);
+          margin-bottom: 8px;
+          word-break: break-all;
+        }
+
+        .uploading-desc {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+          margin-bottom: 20px;
+        }
+
+        .viewport-upload-meta {
+          display: flex;
+          gap: 16px;
+          font-size: 0.8rem;
+          color: var(--text-muted);
+          border-top: 1px solid var(--border);
+          padding-top: 16px;
+          width: 100%;
+          justify-content: center;
         }
 
         @media (max-width: 600px) {
