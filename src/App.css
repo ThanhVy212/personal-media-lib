@@ -1,0 +1,168 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: var(--bg-darker);
+}
+
+/* Header styling */
+.app-header {
+  height: 64px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  color: var(--primary);
+}
+
+.logo-text {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  background: linear-gradient(135deg, var(--text-primary) 30%, var(--primary-hover) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Workspace Layout */
+.app-workspace {
+  display: flex;
+  flex-grow: 1;
+  width: 100%;
+  height: calc(100vh - 64px);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Main Viewport styling */
+.app-viewport {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--bg-darker);
+}
+
+/* Common Control Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  border: 1px solid transparent;
+  outline: none;
+  color: var(--text-primary);
+}
+
+.btn-icon {
+  padding: 8px;
+  border-radius: 50%;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+  box-shadow: 0 0 12px rgba(124, 58, 237, 0.4);
+}
+
+.btn-secondary {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: var(--border);
+}
+
+.btn-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-danger {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.btn-danger:hover {
+  background-color: var(--danger);
+  color: var(--text-primary);
+  border-color: var(--danger);
+}
+
+/* Tooltip overlay styling helper */
+.tooltip {
+  position: relative;
+}
+
+.tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: var(--transition-smooth);
+  box-shadow: var(--shadow-md);
+  z-index: 100;
+}
+
+.tooltip:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Toast Notification for errors or quick info */
+.toast {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 1000;
+  animation: fadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}

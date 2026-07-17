@@ -1,0 +1,184 @@
+:root {
+  /* Color System */
+  --bg-darker: #08090c;
+  --bg-dark: #0f111a;
+  --bg-card: #181b28;
+  --bg-hover: #232738;
+  
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  
+  --primary: #7c3aed; /* Violet */
+  --primary-hover: #8b5cf6;
+  --primary-light: rgba(124, 58, 237, 0.15);
+  
+  --accent: #06b6d4; /* Cyan */
+  --accent-hover: #22d3ee;
+  
+  --danger: #ef4444;
+  --danger-hover: #f87171;
+  
+  --border: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(124, 58, 237, 0.4);
+  
+  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--bg-darker);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-darker);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Utility Classes */
+.glassmorphism {
+  background: rgba(24, 27, 40, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Animation utilities */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseBorder {
+  0% { border-color: rgba(124, 58, 237, 0.2); }
+  50% { border-color: rgba(124, 58, 237, 0.6); }
+  100% { border-color: rgba(124, 58, 237, 0.2); }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-pulse-border {
+  animation: pulseBorder 2s infinite ease-in-out;
+}
+
+/* Custom styles for range slider inputs (timeline/volume) */
+input[type="range"].custom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+}
+
+input[type="range"].custom-slider:focus {
+  outline: none;
+}
+
+/* Track Styles */
+input[type="range"].custom-slider::-webkit-slider-runnable-track {
+  background: rgba(255, 255, 255, 0.2);
+  height: 4px;
+  border-radius: 2px;
+  transition: var(--transition-smooth);
+}
+
+input[type="range"].custom-slider::-moz-range-track {
+  background: rgba(255, 255, 255, 0.2);
+  height: 4px;
+  border-radius: 2px;
+  transition: var(--transition-smooth);
+}
+
+/* Thumb Styles */
+input[type="range"].custom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: var(--primary);
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  margin-top: -4px; /* Center it on the track */
+  transition: var(--transition-smooth);
+  opacity: 0;
+}
+
+input[type="range"].custom-slider::-moz-range-thumb {
+  background-color: var(--primary);
+  height: 12px;
+  width: 12px;
+  border: none;
+  border-radius: 50%;
+  transition: var(--transition-smooth);
+  opacity: 0;
+}
+
+/* Hover behaviors to expand tracking and show thumb */
+.slider-container:hover input[type="range"].custom-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.slider-container:hover input[type="range"].custom-slider::-moz-range-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.slider-container:hover input[type="range"].custom-slider::-webkit-slider-thumb {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+.slider-container:hover input[type="range"].custom-slider::-moz-range-thumb {
+  opacity: 1;
+  transform: scale(1.2);
+}
