@@ -42,6 +42,7 @@ export default function VideoPlayer({
   const [endTime, setEndTime] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
+  const [activeHandle, setActiveHandle] = useState("start");
 
   const containerRef = useRef(null);
   const videoRef = useRef(null);
@@ -500,39 +501,53 @@ export default function VideoPlayer({
               <span className="trim-title-badge">Trim Settings</span>
               <span className="trim-duration-badge">Clip Duration: {formatTime(endTime - startTime)}</span>
             </div>
-            <div className="trim-sliders-container">
-              <div className="trim-slider-item">
-                <span className="trim-slider-label">Start Time: {formatTime(startTime)}</span>
+            <div className="trim-double-slider-wrapper">
+              <div className="trim-double-slider-labels">
+                <span className="trim-time-badge">Start Time: {formatTime(startTime)}</span>
+                <span className="trim-time-badge font-accent">End Time: {formatTime(endTime)}</span>
+              </div>
+              <div className="double-slider-container">
+                <div className="double-slider-track"></div>
+                <div 
+                  className="double-slider-range"
+                  style={{
+                    left: `${(startTime / (duration || 1)) * 100}%`,
+                    width: `${((endTime - startTime) / (duration || 1)) * 100}%`
+                  }}
+                ></div>
                 <input
                   type="range"
                   min={0}
                   max={duration || 100}
                   step={0.1}
                   value={startTime}
+                  onMouseDown={() => setActiveHandle("start")}
+                  onTouchStart={() => setActiveHandle("start")}
                   onChange={(e) => {
                     const val = parseFloat(e.target.value);
                     setStartTime(Math.min(val, endTime - 0.5));
                     videoRef.current.currentTime = val;
                     setCurrentTime(val);
                   }}
-                  className="custom-slider"
+                  className="double-slider-input"
+                  style={{ zIndex: activeHandle === "start" ? 5 : 3 }}
                 />
-              </div>
-              <div className="trim-slider-item">
-                <span className="trim-slider-label">End Time: {formatTime(endTime)}</span>
                 <input
                   type="range"
                   min={0}
                   max={duration || 100}
                   step={0.1}
                   value={endTime}
+                  onMouseDown={() => setActiveHandle("end")}
+                  onTouchStart={() => setActiveHandle("end")}
                   onChange={(e) => {
                     const val = parseFloat(e.target.value);
                     setEndTime(Math.max(val, startTime + 0.5));
                     videoRef.current.currentTime = val;
                     setCurrentTime(val);
                   }}
-                  className="custom-slider"
+                  className="double-slider-input"
+                  style={{ zIndex: activeHandle === "end" ? 5 : 3 }}
                 />
               </div>
             </div>
@@ -1104,22 +1119,119 @@ export default function VideoPlayer({
           border-radius: 4px;
         }
 
-        .trim-sliders-container {
+        .trim-double-slider-wrapper {
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 10px;
+          padding: 8px 4px;
         }
 
-        .trim-slider-item {
+        .trim-double-slider-labels {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.8rem;
+        }
+
+        .trim-time-badge {
+          color: var(--text-secondary);
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid var(--border);
+          padding: 4px 10px;
+          border-radius: 6px;
+          font-weight: 500;
+        }
+
+        .trim-time-badge.font-accent {
+          border-color: rgba(6, 182, 212, 0.3);
+        }
+
+        .double-slider-container {
+          position: relative;
+          width: 100%;
+          height: 24px;
           display: flex;
           align-items: center;
-          gap: 12px;
         }
 
-        .trim-slider-label {
-          font-size: 0.8rem;
-          color: var(--text-secondary);
-          min-width: 100px;
+        .double-slider-track {
+          position: absolute;
+          left: 0;
+          right: 0;
+          height: 6px;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 3px;
+          z-index: 1;
+        }
+
+        .double-slider-range {
+          position: absolute;
+          height: 6px;
+          background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+          border-radius: 3px;
+          z-index: 2;
+        }
+
+        .double-slider-input {
+          position: absolute;
+          width: 100%;
+          height: 24px;
+          background: transparent;
+          pointer-events: none;
+          -webkit-appearance: none;
+          appearance: none;
+          margin: 0;
+          outline: none;
+        }
+
+        .double-slider-input::-webkit-slider-runnable-track {
+          background: transparent;
+          border: none;
+          height: 24px;
+        }
+
+        .double-slider-input::-moz-range-track {
+          background: transparent;
+          border: none;
+          height: 24px;
+        }
+
+        .double-slider-input::-webkit-slider-thumb {
+          pointer-events: auto;
+          -webkit-appearance: none;
+          appearance: none;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: #ffffff;
+          border: 2px solid var(--primary);
+          cursor: pointer;
+          box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+          transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.15s;
+          margin-top: -5px; /* Center it on -webkit */
+        }
+
+        .double-slider-input::-webkit-slider-thumb:hover {
+          transform: scale(1.3);
+          background-color: var(--primary-hover);
+          border-color: #ffffff;
+        }
+
+        .double-slider-input::-moz-range-thumb {
+          pointer-events: auto;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: #ffffff;
+          border: 2px solid var(--primary);
+          cursor: pointer;
+          box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+          transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.15s;
+        }
+
+        .double-slider-input::-moz-range-thumb:hover {
+          transform: scale(1.3);
+          background-color: var(--primary-hover);
+          border-color: #ffffff;
         }
 
         .trim-actions-row {
