@@ -99,7 +99,20 @@ export default function VideoPlayer({
     setEndTime(0);
     setIsExporting(false);
     setExportProgress(0);
-    if (exportIntervalRef.current) clearInterval(exportIntervalRef.current);
+
+    // Cleanup export resources on source change
+    if (exportIntervalRef.current) {
+      clearInterval(exportIntervalRef.current);
+      exportIntervalRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current = null;
+    }
+    const video = videoRef.current;
+    if (video) {
+      video.removeEventListener("seeked", video._exportSeekHandler);
+    }
   }, [src]);
 
   // Sync volume with browser audio level
@@ -282,12 +295,17 @@ export default function VideoPlayer({
     const video = videoRef.current;
     if (!video) return;
 
+    // Re-entry guard
+    if (isExporting) return;
+
     const streamFn = video.captureStream || video.mozCaptureStream;
     if (!streamFn) {
       alert("Your browser does not support client-side video exporting. Please try Chrome, Firefox, or Edge.");
       return;
     }
 
+    // Set export state before any async operations
+    setIsExporting(true);
     setIsPlaying(false);
     video.pause();
     video.currentTime = startTime;
@@ -295,13 +313,47 @@ export default function VideoPlayer({
     const originalMuted = video.muted;
     const originalVolume = video.volume;
     const originalPlaybackRate = video.playbackRate;
+    let exportCancelled = false;
+    let objectUrl = null;
+
+    // Centralized cleanup finalizer (idempotent)
+    const cleanupExport = (restoreSettings = true) => {
+      // Clear interval
+      if (exportIntervalRef.current) {
+        clearInterval(exportIntervalRef.current);
+        exportIntervalRef.current = null;
+      }
+
+      // Stop and release recorder
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== "inactive") {
+        recorder.stop();
+      }
+      mediaRecorderRef.current = null;
+
+      // Revoke object URL
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        objectUrl = null;
+      }
+
+      // Restore video settings
+      if (restoreSettings && video) {
+        video.playbackRate = originalPlaybackRate;
+        video.muted = originalMuted;
+        video.volume = originalVolume;
+        video.pause();
+        setIsPlaying(false);
+      }
+
+      setIsExporting(false);
+      setExportProgress(0);
+    };
 
     const onSeeked = () => {
-      video.removeEventListener("seeked", onSeeked);
-
       try {
         const stream = streamFn.call(video);
-        
+
         let options = { mimeType: "video/webm;codecs=vp9,opus" };
         if (!MediaRecorder.isTypeSupported(options.mimeType)) {
           options = { mimeType: "video/webm;codecs=vp8,opus" };
@@ -327,37 +379,28 @@ export default function VideoPlayer({
         };
 
         mediaRecorder.onstop = () => {
-          if (exportIntervalRef.current) clearInterval(exportIntervalRef.current);
+          cleanupExport();
 
-          video.playbackRate = originalPlaybackRate;
-          video.muted = originalMuted;
-          video.volume = originalVolume;
-          video.pause();
-          setIsPlaying(false);
-
-          if (chunks.length > 0) {
+          // Only download if not cancelled
+          if (!exportCancelled && chunks.length > 0) {
             const mimeStr = options.mimeType || "video/webm";
             const blob = new Blob(chunks, { type: mimeStr });
-            const url = URL.createObjectURL(blob);
+            objectUrl = URL.createObjectURL(blob);
             const link = document.createElement("a");
             const dotIndex = name.lastIndexOf(".");
             const baseName = dotIndex !== -1 ? name.substring(0, dotIndex) : name;
             const extension = mimeStr.includes("mp4") ? ".mp4" : ".webm";
             link.download = `${baseName}-trimmed${extension}`;
-            link.href = url;
+            link.href = objectUrl;
             link.click();
+            setIsEditing(false);
           }
-
-          setIsExporting(false);
-          setExportProgress(0);
-          setIsEditing(false);
         };
 
-        setIsExporting(true);
         setExportProgress(0);
 
         video.muted = true;
-        video.playbackRate = 1.5; 
+        video.playbackRate = 1;
 
         mediaRecorder.start();
         video.play();
@@ -378,33 +421,52 @@ export default function VideoPlayer({
       } catch (err) {
         console.error("Failed to export video:", err);
         alert("Failed to export video. Please try again.");
-        video.playbackRate = originalPlaybackRate;
-        video.muted = originalMuted;
-        video.volume = originalVolume;
-        setIsExporting(false);
-        setExportProgress(0);
+        cleanupExport();
       }
     };
 
-    video.addEventListener("seeked", onSeeked);
+    // Store handler reference for cleanup and use once option
+    video._exportSeekHandler = onSeeked;
+    video.addEventListener("seeked", onSeeked, { once: true });
+
+    // Store cancellation flag setter for handleCancelExport
+    video._setExportCancelled = () => { exportCancelled = true; };
   };
 
   const handleCancelExport = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Set cancellation flag to prevent download in onstop
+    if (video._setExportCancelled) {
+      video._setExportCancelled();
+    }
+
+    // Clear interval
     if (exportIntervalRef.current) {
       clearInterval(exportIntervalRef.current);
+      exportIntervalRef.current = null;
     }
+
+    // Stop recorder
     const mediaRecorder = mediaRecorderRef.current;
     if (mediaRecorder && mediaRecorder.state !== "inactive") {
-      mediaRecorder.ondataavailable = null;
       mediaRecorder.stop();
     }
-    const video = videoRef.current;
-    if (video) {
-      video.pause();
-      setIsPlaying(false);
-      video.playbackRate = 1;
-      video.muted = false;
+    mediaRecorderRef.current = null;
+
+    // Remove seeked listener
+    if (video._exportSeekHandler) {
+      video.removeEventListener("seeked", video._exportSeekHandler);
+      video._exportSeekHandler = null;
     }
+
+    // Restore video state
+    video.pause();
+    setIsPlaying(false);
+    video.playbackRate = 1;
+    video.muted = false;
+
     setIsExporting(false);
     setExportProgress(0);
   };

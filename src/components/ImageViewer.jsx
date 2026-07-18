@@ -243,8 +243,7 @@ export default function ImageViewer({
       const link = document.createElement('a');
       const dotIndex = name.lastIndexOf('.');
       const baseName = dotIndex !== -1 ? name.substring(0, dotIndex) : name;
-      const extension = dotIndex !== -1 ? name.substring(dotIndex) : '.png';
-      link.download = `${baseName}-cropped${extension}`;
+      link.download = `${baseName}-cropped.png`;
       link.href = dataUrl;
       link.click();
       setIsCropping(false);
