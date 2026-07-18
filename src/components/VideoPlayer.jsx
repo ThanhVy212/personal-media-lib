@@ -11,7 +11,9 @@ import {
   Monitor,
   ChevronLeft,
   ChevronRight,
-  RotateCcw,
+  Scissors,
+  Download,
+  X,
 } from "lucide-react";
 
 export default function VideoPlayer({
@@ -34,10 +36,19 @@ export default function VideoPlayer({
   const [hoverTime, setHoverTime] = useState(null);
   const [hoverX, setHoverX] = useState(0);
 
+  // Trimming states
+  const [isEditing, setIsEditing] = useState(false);
+  const [startTime, setStartTime] = useState(0);
+  const [endTime, setEndTime] = useState(0);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+
   const containerRef = useRef(null);
   const videoRef = useRef(null);
   const timelineRef = useRef(null);
   const controlsTimeoutRef = useRef(null);
+  const exportIntervalRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
 
   const speedOptions = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
@@ -48,8 +59,8 @@ export default function VideoPlayer({
       clearTimeout(controlsTimeoutRef.current);
     }
 
-    // Only auto-hide if playing
-    if (isPlaying) {
+    // Only auto-hide if playing and not editing/exporting
+    if (isPlaying && !isEditing && !isExporting) {
       controlsTimeoutRef.current = setTimeout(() => {
         setControlsVisible(false);
         setShowSpeedMenu(false);
@@ -62,14 +73,14 @@ export default function VideoPlayer({
     return () => {
       if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     };
-  }, [isPlaying]);
+  }, [isPlaying, isEditing, isExporting]);
 
   const handleMouseMove = () => {
     resetControlsTimeout();
   };
 
   const handleMouseLeave = () => {
-    if (isPlaying) {
+    if (isPlaying && !isEditing && !isExporting) {
       setControlsVisible(false);
       setShowSpeedMenu(false);
     }
@@ -82,6 +93,12 @@ export default function VideoPlayer({
     setPlaybackRate(1);
     setShowSpeedMenu(false);
     setControlsVisible(true);
+    setIsEditing(false);
+    setStartTime(0);
+    setEndTime(0);
+    setIsExporting(false);
+    setExportProgress(0);
+    if (exportIntervalRef.current) clearInterval(exportIntervalRef.current);
   }, [src]);
 
   // Sync volume with browser audio level
@@ -94,6 +111,7 @@ export default function VideoPlayer({
 
   // Keyboard controls
   useEffect(() => {
+    if (isExporting) return;
     const handleKeyDown = (e) => {
       // Ignore key events if focused on input elements (e.g., search box)
       if (
@@ -136,7 +154,7 @@ export default function VideoPlayer({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, isMuted, volume]);
+  }, [isPlaying, isMuted, volume, isExporting]);
 
   // Listen to native fullscreen changes
   useEffect(() => {
@@ -149,7 +167,7 @@ export default function VideoPlayer({
   }, []);
 
   const togglePlay = () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || isExporting) return;
     if (isPlaying) {
       videoRef.current.pause();
     } else {
@@ -158,6 +176,7 @@ export default function VideoPlayer({
   };
 
   const toggleMute = () => {
+    if (isExporting) return;
     setIsMuted(!isMuted);
   };
 
@@ -170,26 +189,43 @@ export default function VideoPlayer({
   };
 
   const seek = (seconds) => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || isExporting) return;
     let newTime = videoRef.current.currentTime + seconds;
-    newTime = Math.max(0, Math.min(newTime, duration));
+    if (isEditing) {
+      newTime = Math.max(startTime, Math.min(newTime, endTime));
+    } else {
+      newTime = Math.max(0, Math.min(newTime, duration));
+    }
     videoRef.current.currentTime = newTime;
     setCurrentTime(newTime);
   };
 
   const handleTimeUpdate = () => {
-    if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
+    if (videoRef.current && !isExporting) {
+      const curr = videoRef.current.currentTime;
+      setCurrentTime(curr);
+      if (isEditing) {
+        if (curr >= endTime) {
+          videoRef.current.currentTime = startTime;
+          setCurrentTime(startTime);
+        } else if (curr < startTime) {
+          videoRef.current.currentTime = startTime;
+          setCurrentTime(startTime);
+        }
+      }
     }
   };
 
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
-      setDuration(videoRef.current.duration);
+      const dur = videoRef.current.duration;
+      setDuration(dur);
+      setEndTime(dur);
     }
   };
 
   const handleScrubChange = (e) => {
+    if (isExporting) return;
     const val = parseFloat(e.target.value);
     videoRef.current.currentTime = val;
     setCurrentTime(val);
@@ -215,7 +251,7 @@ export default function VideoPlayer({
   };
 
   const handlePip = async () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || isExporting) return;
     try {
       if (document.pictureInPictureElement) {
         await document.exitPictureInPicture();
@@ -241,6 +277,137 @@ export default function VideoPlayer({
     setHoverTime(null);
   };
 
+  const handleExportVideo = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const streamFn = video.captureStream || video.mozCaptureStream;
+    if (!streamFn) {
+      alert("Your browser does not support client-side video exporting. Please try Chrome, Firefox, or Edge.");
+      return;
+    }
+
+    setIsPlaying(false);
+    video.pause();
+    video.currentTime = startTime;
+
+    const originalMuted = video.muted;
+    const originalVolume = video.volume;
+    const originalPlaybackRate = video.playbackRate;
+
+    const onSeeked = () => {
+      video.removeEventListener("seeked", onSeeked);
+
+      try {
+        const stream = streamFn.call(video);
+        
+        let options = { mimeType: "video/webm;codecs=vp9,opus" };
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+          options = { mimeType: "video/webm;codecs=vp8,opus" };
+        }
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+          options = { mimeType: "video/webm" };
+        }
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+          options = { mimeType: "video/mp4" };
+        }
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+          options = {};
+        }
+
+        const mediaRecorder = new MediaRecorder(stream, options);
+        mediaRecorderRef.current = mediaRecorder;
+        const chunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            chunks.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          if (exportIntervalRef.current) clearInterval(exportIntervalRef.current);
+
+          video.playbackRate = originalPlaybackRate;
+          video.muted = originalMuted;
+          video.volume = originalVolume;
+          video.pause();
+          setIsPlaying(false);
+
+          if (chunks.length > 0) {
+            const mimeStr = options.mimeType || "video/webm";
+            const blob = new Blob(chunks, { type: mimeStr });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            const dotIndex = name.lastIndexOf(".");
+            const baseName = dotIndex !== -1 ? name.substring(0, dotIndex) : name;
+            const extension = mimeStr.includes("mp4") ? ".mp4" : ".webm";
+            link.download = `${baseName}-trimmed${extension}`;
+            link.href = url;
+            link.click();
+          }
+
+          setIsExporting(false);
+          setExportProgress(0);
+          setIsEditing(false);
+        };
+
+        setIsExporting(true);
+        setExportProgress(0);
+
+        video.muted = true;
+        video.playbackRate = 1.5; 
+
+        mediaRecorder.start();
+        video.play();
+        setIsPlaying(true);
+
+        const interval = setInterval(() => {
+          const curr = video.currentTime;
+          if (video.ended || curr >= endTime) {
+            clearInterval(interval);
+            mediaRecorder.stop();
+          } else {
+            const progress = ((curr - startTime) / (endTime - startTime)) * 100;
+            setExportProgress(Math.min(99, Math.round(progress)));
+          }
+        }, 100);
+        exportIntervalRef.current = interval;
+
+      } catch (err) {
+        console.error("Failed to export video:", err);
+        alert("Failed to export video. Please try again.");
+        video.playbackRate = originalPlaybackRate;
+        video.muted = originalMuted;
+        video.volume = originalVolume;
+        setIsExporting(false);
+        setExportProgress(0);
+      }
+    };
+
+    video.addEventListener("seeked", onSeeked);
+  };
+
+  const handleCancelExport = () => {
+    if (exportIntervalRef.current) {
+      clearInterval(exportIntervalRef.current);
+    }
+    const mediaRecorder = mediaRecorderRef.current;
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      mediaRecorder.ondataavailable = null;
+      mediaRecorder.stop();
+    }
+    const video = videoRef.current;
+    if (video) {
+      video.pause();
+      setIsPlaying(false);
+      video.playbackRate = 1;
+      video.muted = false;
+    }
+    setIsExporting(false);
+    setExportProgress(0);
+  };
+
   const formatTime = (timeInSeconds) => {
     if (isNaN(timeInSeconds)) return "0:00";
     const minutes = Math.floor(timeInSeconds / 60);
@@ -261,7 +428,9 @@ export default function VideoPlayer({
   return (
     <div
       ref={containerRef}
-      className={`video-player-container no-select ${controlsVisible ? "show-controls" : "hide-controls"}`}
+      className={`video-player-container no-select ${
+        controlsVisible || isEditing ? "show-controls" : "hide-controls"
+      }`}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
@@ -285,12 +454,107 @@ export default function VideoPlayer({
       />
 
       {/* Big Playback Indicator overlay (Brief flash when playing/pausing) */}
-      <div className="play-state-flash" onClick={togglePlay}>
-        {isPlaying ? <Pause size={48} /> : <Play size={48} />}
-      </div>
+      {!isEditing && !isExporting && (
+        <div className="play-state-flash" onClick={togglePlay}>
+          {isPlaying ? <Pause size={48} /> : <Play size={48} />}
+        </div>
+      )}
+
+      {/* Exporting Overlay */}
+      {isExporting && (
+        <div className="export-overlay">
+          <div className="export-modal glassmorphism animate-fade-in">
+            <div className="viewport-spinner-container">
+              <svg className="viewport-spinner" viewBox="0 0 50 50">
+                <circle className="path-bg" cx="25" cy="25" r="20" fill="none" strokeWidth="4"></circle>
+                <circle 
+                  className="path-fg" 
+                  cx="25" 
+                  cy="25" 
+                  r="20" 
+                  fill="none" 
+                  strokeWidth="4"
+                  strokeDasharray="125"
+                  strokeDashoffset={125 - (125 * exportProgress) / 100}
+                ></circle>
+              </svg>
+              <span className="viewport-progress-percentage">{exportProgress}%</span>
+            </div>
+            <h3 className="export-title">Exporting Video Clip...</h3>
+            <p className="export-desc">Encoding trimmed segment. Please keep this tab active.</p>
+            <button className="btn btn-danger" onClick={handleCancelExport}>
+              <X size={16} />
+              <span>Cancel Export</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Custom YouTube-style Control Bar Panel */}
       <div className="player-controls-card glassmorphism">
+        
+        {/* Trim controls panel */}
+        {isEditing && (
+          <div className="trim-panel animate-fade-in">
+            <div className="trim-header-row">
+              <span className="trim-title-badge">Trim Settings</span>
+              <span className="trim-duration-badge">Clip Duration: {formatTime(endTime - startTime)}</span>
+            </div>
+            <div className="trim-sliders-container">
+              <div className="trim-slider-item">
+                <span className="trim-slider-label">Start Time: {formatTime(startTime)}</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={duration || 100}
+                  step={0.1}
+                  value={startTime}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setStartTime(Math.min(val, endTime - 0.5));
+                    videoRef.current.currentTime = val;
+                    setCurrentTime(val);
+                  }}
+                  className="custom-slider"
+                />
+              </div>
+              <div className="trim-slider-item">
+                <span className="trim-slider-label">End Time: {formatTime(endTime)}</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={duration || 100}
+                  step={0.1}
+                  value={endTime}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setEndTime(Math.max(val, startTime + 0.5));
+                    videoRef.current.currentTime = val;
+                    setCurrentTime(val);
+                  }}
+                  className="custom-slider"
+                />
+              </div>
+            </div>
+            <div className="trim-actions-row">
+              <button 
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  videoRef.current.currentTime = startTime;
+                  videoRef.current.play();
+                  setIsPlaying(true);
+                }}
+              >
+                Preview Trim
+              </button>
+              <button className="btn btn-primary btn-sm" onClick={handleExportVideo}>
+                <Download size={14} />
+                <span>Export & Download</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Timeline Slider Track */}
         <div
           ref={timelineRef}
@@ -310,6 +574,15 @@ export default function VideoPlayer({
 
           {/* Color Fill Track background */}
           <div className="timeline-visual-track">
+            {isEditing && (
+              <div
+                className="trim-highlight-bar"
+                style={{
+                  left: `${(startTime / (duration || 1)) * 100}%`,
+                  width: `${((endTime - startTime) / (duration || 1)) * 100}%`
+                }}
+              />
+            )}
             <div
               className="timeline-played-fill"
               style={{ width: `${progressPercent}%` }}
@@ -434,6 +707,23 @@ export default function VideoPlayer({
                 </div>
               )}
             </div>
+
+            {/* Scissors trim button */}
+            <button
+              className={`ctrl-btn ${isEditing ? "active-speed" : ""}`}
+              onClick={() => {
+                if (isEditing) {
+                  setIsEditing(false);
+                } else {
+                  setIsEditing(true);
+                  setStartTime(0);
+                  setEndTime(duration || 10);
+                }
+              }}
+              title="Edit / Trim Video"
+            >
+              <Scissors size={20} />
+            </button>
 
             {/* Fullscreen control */}
             <button
@@ -779,6 +1069,158 @@ export default function VideoPlayer({
           bottom: 40px;
           left: 40px;
           right: 40px;
+        }
+
+        /* Trimming panel styles */
+        .trim-panel {
+          background: rgba(8, 9, 12, 0.6);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 12px;
+          margin-bottom: 10px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .trim-header-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 0.8rem;
+        }
+
+        .trim-title-badge {
+          font-weight: 700;
+          color: var(--primary-hover);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .trim-duration-badge {
+          color: var(--text-secondary);
+          background: rgba(255, 255, 255, 0.05);
+          padding: 2px 8px;
+          border-radius: 4px;
+        }
+
+        .trim-sliders-container {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .trim-slider-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .trim-slider-label {
+          font-size: 0.8rem;
+          color: var(--text-secondary);
+          min-width: 100px;
+        }
+
+        .trim-actions-row {
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
+          border-top: 1px solid var(--border);
+          padding-top: 8px;
+        }
+
+        .btn-sm {
+          padding: 6px 12px;
+          font-size: 0.8rem;
+          border-radius: 6px;
+        }
+
+        .trim-highlight-bar {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          background: rgba(124, 58, 237, 0.4);
+          border-left: 2px solid var(--primary);
+          border-right: 2px solid var(--primary);
+          pointer-events: none;
+          z-index: 2;
+        }
+
+        /* Export Overlay styles */
+        .export-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(5, 6, 8, 0.85);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 100;
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+        }
+
+        .export-modal {
+          width: 90%;
+          max-width: 380px;
+          padding: 32px 24px;
+          border-radius: 20px;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          box-shadow: var(--shadow-lg);
+          border: 1px solid var(--border);
+          background: rgba(24, 27, 40, 0.95);
+        }
+
+        .export-title {
+          font-size: 1.15rem;
+          font-weight: 600;
+          color: var(--text-primary);
+          margin-bottom: 6px;
+        }
+
+        .export-desc {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+          margin-bottom: 24px;
+        }
+
+        .viewport-spinner-container {
+          position: relative;
+          width: 80px;
+          height: 80px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 16px;
+        }
+
+        .viewport-spinner {
+          width: 100%;
+          height: 100%;
+          transform: rotate(-90deg);
+        }
+
+        .viewport-spinner .path-bg {
+          stroke: rgba(255, 255, 255, 0.05);
+        }
+
+        .viewport-spinner .path-fg {
+          stroke: var(--primary);
+          stroke-linecap: round;
+          transition: stroke-dashoffset 0.15s ease;
+        }
+
+        .viewport-progress-percentage {
+          position: absolute;
+          font-size: 1.1rem;
+          font-weight: 700;
+          color: var(--text-primary);
         }
       `}</style>
     </div>
