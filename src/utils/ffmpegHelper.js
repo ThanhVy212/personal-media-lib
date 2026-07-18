@@ -1,39 +1,40 @@
-import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
+import { FFmpeg } from "@ffmpeg/ffmpeg";
+import { fetchFile, toBlobURL } from "@ffmpeg/util";
+import corePath from "@ffmpeg/core?url";
+import wasmPath from "@ffmpeg/core/wasm?url";
 
 class FFmpegHelper {
   constructor() {
-    this.ffmpeg = null;
+    this.ffmpeg = new FFmpeg();
     this.loaded = false;
+    this.progressHandler = null;
   }
 
   async load(onProgress) {
     if (this.loaded) return;
 
-    this.ffmpeg = createFFmpeg({ 
-      log: true,
-      progress: (p) => {
-        if (onProgress) {
-          const progress = p.ratio ? Math.round(p.ratio * 100) : 0;
-          onProgress(progress);
-        }
-      }
-    });
-
-    // Simulate progress for core loading (since FFmpeg doesn't provide it)
     if (onProgress) {
+      this.progressHandler = ({ progress }) => {
+        onProgress(Math.round(progress * 50));
+      };
+      this.ffmpeg.on("progress", this.progressHandler);
       onProgress(0);
-      const loadStartTime = Date.now();
-      const progressInterval = setInterval(() => {
-        onProgress(Math.min(50, (Date.now() - loadStartTime) / 100));
-      }, 100);
-      
-      await this.ffmpeg.load();
-      clearInterval(progressInterval);
-    } else {
-      await this.ffmpeg.load();
+    }
+
+    try {
+      await this.ffmpeg.load({
+        coreURL: await toBlobURL(corePath, "text/javascript"),
+        wasmURL: await toBlobURL(wasmPath, "application/wasm"),
+      });
+    } finally {
+      if (this.progressHandler) {
+        this.ffmpeg.off("progress", this.progressHandler);
+        this.progressHandler = null;
+      }
     }
 
     this.loaded = true;
+    if (onProgress) onProgress(50);
   }
 
   async trimVideoLossless(videoFile, startTime, endTime, onProgress) {
@@ -41,36 +42,61 @@ class FFmpegHelper {
       await this.load(onProgress);
     }
 
-    const inputName = 'input.mp4';
-    const outputName = 'output.mp4';
-
-    if (onProgress) onProgress(35);
-    await this.ffmpeg.FS('writeFile', inputName, await fetchFile(videoFile));
-
-    if (onProgress) onProgress(40);
+    const inputName = "input.mp4";
+    const outputName = "output.mp4";
     const duration = endTime - startTime;
-    
-    // Use -c copy to copy streams without re-encoding (lossless)
-    // -ss before input for faster seeking
-    // -t for duration
-    await this.ffmpeg.run(
-      '-ss', startTime.toString(),
-      '-i', inputName,
-      '-t', duration.toString(),
-      '-c', 'copy',
-      '-avoid_negative_ts', '1',
-      outputName
-    );
 
-    if (onProgress) onProgress(90);
-    const data = this.ffmpeg.FS('readFile', outputName);
-    
-    if (onProgress) onProgress(95);
-    // Cleanup
-    this.ffmpeg.FS('unlink', inputName);
-    this.ffmpeg.FS('unlink', outputName);
+    const trimProgressHandler = onProgress
+      ? ({ progress }) => {
+          onProgress(50 + Math.round(progress * 45));
+        }
+      : null;
 
-    return new Blob([data.buffer], { type: 'video/mp4' });
+    if (trimProgressHandler) {
+      this.ffmpeg.on("progress", trimProgressHandler);
+    }
+
+    if (onProgress) onProgress(55);
+
+    try {
+      await this.ffmpeg.writeFile(inputName, await fetchFile(videoFile));
+
+      if (onProgress) onProgress(60);
+
+      const exitCode = await this.ffmpeg.exec([
+        "-ss",
+        startTime.toString(),
+        "-i",
+        inputName,
+        "-t",
+        duration.toString(),
+        "-c",
+        "copy",
+        "-avoid_negative_ts",
+        "1",
+        outputName,
+      ]);
+
+      if (exitCode !== 0) {
+        throw new Error(`FFmpeg exited with code ${exitCode}`);
+      }
+
+      if (onProgress) onProgress(95);
+
+      const data = await this.ffmpeg.readFile(outputName);
+      return new Blob([data], { type: "video/mp4" });
+    } finally {
+      if (trimProgressHandler) {
+        this.ffmpeg.off("progress", trimProgressHandler);
+      }
+
+      try {
+        await this.ffmpeg.deleteFile(inputName);
+      } catch (e) {}
+      try {
+        await this.ffmpeg.deleteFile(outputName);
+      } catch (e) {}
+    }
   }
 }
 
