@@ -79,6 +79,10 @@ export default function VideoPlayer({
     resetControlsTimeout();
   };
 
+  const handleTouchStart = () => {
+    resetControlsTimeout();
+  };
+
   const handleMouseLeave = () => {
     if (isPlaying && !isEditing && !isExporting) {
       setControlsVisible(false);
@@ -364,6 +368,7 @@ export default function VideoPlayer({
       }`}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
     >
       {/* Top Banner overlay */}
       <div className="video-title-overlay">
@@ -616,7 +621,7 @@ export default function VideoPlayer({
             {/* Picture in Picture */}
             {document.pictureInPictureEnabled && (
               <button
-                className="ctrl-btn"
+                className="ctrl-btn mobile-hidden"
                 onClick={handlePip}
                 title="Picture-in-Picture"
               >

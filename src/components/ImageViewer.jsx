@@ -85,6 +85,21 @@ export default function ImageViewer({
     };
   }, [isCropping]);
 
+  // Prevent page scroll while panning zoomed image on touch
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || isCropping) return;
+
+    const handleTouchMove = (e) => {
+      if (isDragging && e.touches.length === 1) {
+        e.preventDefault();
+      }
+    };
+
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    return () => container.removeEventListener('touchmove', handleTouchMove);
+  }, [isDragging, isCropping]);
+
   // Listen to Fullscreen API change events
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -146,10 +161,17 @@ export default function ImageViewer({
   };
 
   const handleMouseDown = (e) => {
-    if (isCropping || scale <= 1) return; // Only allow panning when zoomed in
+    if (isCropping || scale <= 1) return;
     e.preventDefault();
     setIsDragging(true);
     setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
+  };
+
+  const handleTouchStartPan = (e) => {
+    if (isCropping || scale <= 1 || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    setIsDragging(true);
+    setDragStart({ x: touch.clientX - offset.x, y: touch.clientY - offset.y });
   };
 
   const handleMouseMove = (e) => {
@@ -160,21 +182,39 @@ export default function ImageViewer({
     });
   };
 
+  const handleTouchMovePan = (e) => {
+    if (isCropping || !isDragging || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    setOffset({
+      x: touch.clientX - dragStart.x,
+      y: touch.clientY - dragStart.y
+    });
+  };
+
   const handleMouseUp = () => {
     setIsDragging(false);
+  };
+
+  const getPointerCoords = (e) => {
+    if (e.touches && e.touches.length > 0) {
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    return { x: e.clientX, y: e.clientY };
   };
 
   const handleDragStart = (e, action) => {
     e.preventDefault();
     e.stopPropagation();
 
-    const startX = e.clientX;
-    const startY = e.clientY;
+    const startCoords = getPointerCoords(e);
+    const startX = startCoords.x;
+    const startY = startCoords.y;
     const startCrop = { ...crop };
 
     const handleDragMove = (moveEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
+      const coords = getPointerCoords(moveEvent);
+      const dx = coords.x - startX;
+      const dy = coords.y - startY;
       const dxPercent = (dx / imageDims.width) * 100;
       const dyPercent = (dy / imageDims.height) * 100;
 
@@ -211,10 +251,14 @@ export default function ImageViewer({
     const handleDragEnd = () => {
       window.removeEventListener('mousemove', handleDragMove);
       window.removeEventListener('mouseup', handleDragEnd);
+      window.removeEventListener('touchmove', handleDragMove);
+      window.removeEventListener('touchend', handleDragEnd);
     };
 
     window.addEventListener('mousemove', handleDragMove);
     window.addEventListener('mouseup', handleDragEnd);
+    window.addEventListener('touchmove', handleDragMove, { passive: false });
+    window.addEventListener('touchend', handleDragEnd);
   };
 
   const handleCropDownload = () => {
@@ -284,6 +328,9 @@ export default function ImageViewer({
       <div 
         className="image-canvas"
         onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStartPan}
+        onTouchMove={handleTouchMovePan}
+        onTouchEnd={handleMouseUp}
         style={{ 
           cursor: isCropping ? 'default' : (scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'),
           position: 'relative'
@@ -317,6 +364,7 @@ export default function ImageViewer({
             <div 
               className="crop-box"
               onMouseDown={(e) => handleDragStart(e, 'drag')}
+              onTouchStart={(e) => handleDragStart(e, 'drag')}
               style={{
                 left: `${crop.x}%`,
                 top: `${crop.y}%`,
@@ -331,16 +379,16 @@ export default function ImageViewer({
               <div className="crop-grid-line-v2"></div>
 
               {/* Corner handles (L-shaped) */}
-              <div className="crop-handle-corner crop-handle-nw" onMouseDown={(e) => handleDragStart(e, 'nw')}></div>
-              <div className="crop-handle-corner crop-handle-ne" onMouseDown={(e) => handleDragStart(e, 'ne')}></div>
-              <div className="crop-handle-corner crop-handle-se" onMouseDown={(e) => handleDragStart(e, 'se')}></div>
-              <div className="crop-handle-corner crop-handle-sw" onMouseDown={(e) => handleDragStart(e, 'sw')}></div>
+              <div className="crop-handle-corner crop-handle-nw" onMouseDown={(e) => handleDragStart(e, 'nw')} onTouchStart={(e) => handleDragStart(e, 'nw')}></div>
+              <div className="crop-handle-corner crop-handle-ne" onMouseDown={(e) => handleDragStart(e, 'ne')} onTouchStart={(e) => handleDragStart(e, 'ne')}></div>
+              <div className="crop-handle-corner crop-handle-se" onMouseDown={(e) => handleDragStart(e, 'se')} onTouchStart={(e) => handleDragStart(e, 'se')}></div>
+              <div className="crop-handle-corner crop-handle-sw" onMouseDown={(e) => handleDragStart(e, 'sw')} onTouchStart={(e) => handleDragStart(e, 'sw')}></div>
 
               {/* Edge handles */}
-              <div className="crop-handle-edge crop-handle-n" onMouseDown={(e) => handleDragStart(e, 'n')}></div>
-              <div className="crop-handle-edge crop-handle-s" onMouseDown={(e) => handleDragStart(e, 's')}></div>
-              <div className="crop-handle-edge crop-handle-w" onMouseDown={(e) => handleDragStart(e, 'w')}></div>
-              <div className="crop-handle-edge crop-handle-e" onMouseDown={(e) => handleDragStart(e, 'e')}></div>
+              <div className="crop-handle-edge crop-handle-n" onMouseDown={(e) => handleDragStart(e, 'n')} onTouchStart={(e) => handleDragStart(e, 'n')}></div>
+              <div className="crop-handle-edge crop-handle-s" onMouseDown={(e) => handleDragStart(e, 's')} onTouchStart={(e) => handleDragStart(e, 's')}></div>
+              <div className="crop-handle-edge crop-handle-w" onMouseDown={(e) => handleDragStart(e, 'w')} onTouchStart={(e) => handleDragStart(e, 'w')}></div>
+              <div className="crop-handle-edge crop-handle-e" onMouseDown={(e) => handleDragStart(e, 'e')} onTouchStart={(e) => handleDragStart(e, 'e')}></div>
             </div>
           </div>
         )}

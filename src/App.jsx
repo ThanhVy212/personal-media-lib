@@ -15,7 +15,9 @@ import "./App.css";
 export default function App() {
   const [mediaList, setMediaList] = useState([]);
   const [activeIndex, setActiveIndex] = useState("upload");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(
+    () => window.innerWidth > 768,
+  );
   const [toast, setToast] = useState(null);
   const toastTimeoutRef = useRef(null);
 
@@ -26,6 +28,16 @@ export default function App() {
         URL.revokeObjectURL(item.url);
       });
     };
+  }, []);
+
+  // Sync sidebar open state when crossing mobile/desktop breakpoint
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const handleBreakpointChange = (e) => {
+      setIsSidebarOpen(!e.matches);
+    };
+    mq.addEventListener("change", handleBreakpointChange);
+    return () => mq.removeEventListener("change", handleBreakpointChange);
   }, []);
 
   const showToast = (message, type = "info") => {
@@ -165,6 +177,13 @@ export default function App() {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  const handleSelect = (index) => {
+    setActiveIndex(index);
+    if (window.innerWidth <= 768) {
+      setIsSidebarOpen(false);
+    }
+  };
+
   const activeMedia =
     activeIndex !== null && activeIndex !== "upload"
       ? mediaList[activeIndex]
@@ -203,17 +222,24 @@ export default function App() {
             }}
           >
             <FilePlus size={16} />
-            <span>Import</span>
+            <span className="btn-label">Import</span>
           </button>
         </div>
       </header>
 
       {/* Main Workspace split */}
       <div className="app-workspace">
+        {isSidebarOpen && (
+          <div
+            className="sidebar-backdrop"
+            onClick={() => setIsSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        )}
         <Sidebar
           mediaList={mediaList}
           activeIndex={activeIndex}
-          onSelect={setActiveIndex}
+          onSelect={handleSelect}
           onDelete={handleDelete}
           onAddFiles={handleFilesSelected}
           onClearAll={handleClearAll}
