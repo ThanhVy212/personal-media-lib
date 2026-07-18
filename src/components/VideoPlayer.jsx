@@ -87,6 +87,7 @@ export default function VideoPlayer({
     }
   };
 
+
   // Sync state when video source changes
   useEffect(() => {
     setIsPlaying(false);
@@ -353,19 +354,22 @@ export default function VideoPlayer({
     const onSeeked = () => {
       try {
         const stream = streamFn.call(video);
+<<<<<<< HEAD
 
         let options = { mimeType: "video/webm;codecs=vp9,opus" };
+=======
+        
+        // Use high quality settings for better output - always try MP4 first
+        let options = { mimeType: "video/mp4", videoBitsPerSecond: 8000000 };
+>>>>>>> 152bded (move all style file to app.css)
         if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-          options = { mimeType: "video/webm;codecs=vp8,opus" };
+          options = { mimeType: "video/webm;codecs=vp9,opus", videoBitsPerSecond: 8000000 };
         }
         if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-          options = { mimeType: "video/webm" };
+          options = { mimeType: "video/webm;codecs=vp8,opus", videoBitsPerSecond: 8000000 };
         }
         if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-          options = { mimeType: "video/mp4" };
-        }
-        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-          options = {};
+          options = { mimeType: "video/webm", videoBitsPerSecond: 8000000 };
         }
 
         const mediaRecorder = new MediaRecorder(stream, options);
@@ -384,14 +388,20 @@ export default function VideoPlayer({
           // Only download if not cancelled
           if (!exportCancelled && chunks.length > 0) {
             const mimeStr = options.mimeType || "video/webm";
+            // Always save as .mp4 extension for consistency
             const blob = new Blob(chunks, { type: mimeStr });
             objectUrl = URL.createObjectURL(blob);
             const link = document.createElement("a");
             const dotIndex = name.lastIndexOf(".");
             const baseName = dotIndex !== -1 ? name.substring(0, dotIndex) : name;
+<<<<<<< HEAD
             const extension = mimeStr.includes("mp4") ? ".mp4" : ".webm";
             link.download = `${baseName}-trimmed${extension}`;
             link.href = objectUrl;
+=======
+            link.download = `${baseName}-trimmed.mp4`;
+            link.href = url;
+>>>>>>> 152bded (move all style file to app.css)
             link.click();
             setIsEditing(false);
           }
@@ -400,7 +410,11 @@ export default function VideoPlayer({
         setExportProgress(0);
 
         video.muted = true;
+<<<<<<< HEAD
         video.playbackRate = 1;
+=======
+        video.playbackRate = 1.0; // Normal speed for better quality
+>>>>>>> 152bded (move all style file to app.css)
 
         mediaRecorder.start();
         video.play();
@@ -624,7 +638,10 @@ export default function VideoPlayer({
               >
                 Preview Trim
               </button>
-              <button className="btn btn-primary btn-sm" onClick={handleExportVideo}>
+              <button 
+                className="btn btn-primary btn-sm" 
+                onClick={handleExportVideo}
+              >
                 <Download size={14} />
                 <span>Export & Download</span>
               </button>
@@ -814,589 +831,6 @@ export default function VideoPlayer({
         </div>
       </div>
 
-      <style>{`
-        .video-player-container {
-          position: relative;
-          width: 100%;
-          height: 100%;
-          background: #020203;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-        }
-
-        .main-video-element {
-          width: 100%;
-          height: 100%;
-          max-height: 100%;
-          object-fit: contain;
-          cursor: pointer;
-        }
-
-        .video-title-overlay {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          padding: 20px 24px;
-          background: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%);
-          color: var(--text-primary);
-          font-size: 0.95rem;
-          font-weight: 500;
-          z-index: 10;
-          transition: opacity 0.3s ease;
-          pointer-events: none;
-          text-align: center;
-        }
-
-        /* Full Control Bar Panel */
-        .player-controls-card {
-          position: absolute;
-          bottom: 24px;
-          left: 24px;
-          right: 24px;
-          padding: 12px 18px 8px;
-          border-radius: 16px;
-          box-shadow: var(--shadow-lg);
-          z-index: 10;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* Auto-hide states */
-        .hide-controls {
-          cursor: none;
-        }
-        .hide-controls .player-controls-card {
-          opacity: 0;
-          transform: translateY(12px);
-          pointer-events: none;
-        }
-        .hide-controls .video-title-overlay {
-          opacity: 0;
-        }
-
-        .show-controls .player-controls-card {
-          opacity: 1;
-          transform: translateY(0);
-        }
-        .show-controls .video-title-overlay {
-          opacity: 1;
-        }
-
-        /* Big overlay flash states */
-        .play-state-flash {
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          pointer-events: none;
-          z-index: 5;
-        }
-
-        .play-state-flash svg {
-          background: rgba(0, 0, 0, 0.6);
-          padding: 16px;
-          border-radius: 50%;
-          color: #fff;
-          opacity: 0;
-          transform: scale(0.8);
-          transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-        }
-
-        .video-player-container:active .play-state-flash svg {
-          opacity: 1;
-          transform: scale(1.1);
-        }
-
-        /* Timeline and progress styling */
-        .timeline-slider-wrapper {
-          position: relative;
-          width: 100%;
-          height: 16px;
-          display: flex;
-          align-items: center;
-          cursor: pointer;
-        }
-
-        .timeline-input-range {
-          position: absolute;
-          z-index: 5;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-        }
-
-        .timeline-visual-track {
-          position: absolute;
-          left: 0;
-          right: 0;
-          height: 4px;
-          background: rgba(255, 255, 255, 0.2);
-          border-radius: 2px;
-          overflow: hidden;
-          transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .timeline-slider-wrapper:hover .timeline-visual-track {
-          height: 6px;
-        }
-
-        .timeline-played-fill {
-          height: 100%;
-          background: var(--primary);
-          width: 0%;
-        }
-
-        .timeline-hover-tooltip {
-          position: absolute;
-          bottom: 24px;
-          transform: translateX(-50%);
-          background: var(--bg-card);
-          border: 1px solid var(--border);
-          color: var(--text-primary);
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 0.75rem;
-          white-space: nowrap;
-          pointer-events: none;
-          box-shadow: var(--shadow-md);
-          z-index: 15;
-          animation: fadeIn 0.15s ease-out;
-        }
-
-        /* Controls row layout */
-        .controls-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          width: 100%;
-        }
-
-        .controls-left, .controls-right {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .ctrl-btn {
-          background: transparent;
-          border: none;
-          color: var(--text-primary);
-          cursor: pointer;
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: var(--transition-smooth);
-        }
-
-        .ctrl-btn:hover {
-          background: rgba(255, 255, 255, 0.1);
-          color: var(--primary-hover);
-        }
-
-        .secondary-ctrl {
-          color: var(--text-secondary);
-        }
-
-        /* Volume controls slider overlay styling */
-        .volume-control-wrapper {
-          display: flex;
-          align-items: center;
-          gap: 0;
-        }
-
-        .volume-slider-container {
-          width: 0;
-          overflow: hidden;
-          transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin 0.3s;
-          display: flex;
-          align-items: center;
-        }
-
-        .volume-control-wrapper:hover .volume-slider-container {
-          width: 80px;
-          margin-left: 6px;
-          margin-right: 6px;
-        }
-
-        .volume-slider-input {
-          width: 80px;
-        }
-
-        /* Time displays */
-        .time-display {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 0.85rem;
-          color: var(--text-secondary);
-          margin-left: 8px;
-          font-weight: 500;
-        }
-
-        .time-divider {
-          color: var(--text-muted);
-        }
-
-        .duration-time {
-          color: var(--text-muted);
-        }
-
-        /* Speed controllers dropdown */
-        .speed-control-wrapper {
-          position: relative;
-        }
-
-        .speed-toggle-btn {
-          position: relative;
-        }
-
-        .active-speed {
-          color: var(--primary);
-        }
-
-        .speed-badge {
-          position: absolute;
-          top: -2px;
-          right: -2px;
-          background: var(--primary);
-          color: var(--text-primary);
-          font-size: 0.6rem;
-          font-weight: 700;
-          padding: 2px 4px;
-          border-radius: 4px;
-          border: 1px solid var(--bg-card);
-        }
-
-        .rotate-icon {
-          transform: rotate(45deg);
-        }
-
-        .speed-dropdown-menu {
-          position: absolute;
-          bottom: 48px;
-          right: 0;
-          width: 140px;
-          border-radius: 12px;
-          box-shadow: var(--shadow-lg);
-          z-index: 20;
-          padding: 6px;
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          animation: fadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .menu-header {
-          font-size: 0.75rem;
-          font-weight: 600;
-          color: var(--text-muted);
-          padding: 6px 10px;
-          border-bottom: 1px solid var(--border);
-          margin-bottom: 4px;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .speed-option-item {
-          background: transparent;
-          border: none;
-          color: var(--text-secondary);
-          padding: 8px 10px;
-          border-radius: 8px;
-          text-align: left;
-          font-size: 0.85rem;
-          cursor: pointer;
-          transition: var(--transition-smooth);
-        }
-
-        .speed-option-item:hover {
-          background: rgba(255, 255, 255, 0.05);
-          color: var(--text-primary);
-        }
-
-        .speed-option-item.selected {
-          background: var(--primary-light);
-          color: var(--primary-hover);
-          font-weight: 600;
-        }
-
-        /* Fullscreen modifications */
-        .video-player-container:fullscreen {
-          width: 100vw;
-          height: 100vh;
-        }
-
-        .video-player-container:fullscreen .main-video-element {
-          width: 100%;
-          height: 100%;
-        }
-
-        .video-player-container:fullscreen .player-controls-card {
-          bottom: 40px;
-          left: 40px;
-          right: 40px;
-        }
-
-        /* Trimming panel styles */
-        .trim-panel {
-          background: rgba(8, 9, 12, 0.6);
-          border: 1px solid var(--border);
-          border-radius: 12px;
-          padding: 12px;
-          margin-bottom: 10px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .trim-header-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          font-size: 0.8rem;
-        }
-
-        .trim-title-badge {
-          font-weight: 700;
-          color: var(--primary-hover);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .trim-duration-badge {
-          color: var(--text-secondary);
-          background: rgba(255, 255, 255, 0.05);
-          padding: 2px 8px;
-          border-radius: 4px;
-        }
-
-        .trim-double-slider-wrapper {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          padding: 8px 4px;
-        }
-
-        .trim-double-slider-labels {
-          display: flex;
-          justify-content: space-between;
-          font-size: 0.8rem;
-        }
-
-        .trim-time-badge {
-          color: var(--text-secondary);
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid var(--border);
-          padding: 4px 10px;
-          border-radius: 6px;
-          font-weight: 500;
-        }
-
-        .trim-time-badge.font-accent {
-          border-color: rgba(6, 182, 212, 0.3);
-        }
-
-        .double-slider-container {
-          position: relative;
-          width: 100%;
-          height: 24px;
-          display: flex;
-          align-items: center;
-        }
-
-        .double-slider-track {
-          position: absolute;
-          left: 0;
-          right: 0;
-          height: 6px;
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 3px;
-          z-index: 1;
-        }
-
-        .double-slider-range {
-          position: absolute;
-          height: 6px;
-          background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
-          border-radius: 3px;
-          z-index: 2;
-        }
-
-        .double-slider-input {
-          position: absolute;
-          width: 100%;
-          height: 24px;
-          background: transparent;
-          pointer-events: none;
-          -webkit-appearance: none;
-          appearance: none;
-          margin: 0;
-          outline: none;
-        }
-
-        .double-slider-input::-webkit-slider-runnable-track {
-          background: transparent;
-          border: none;
-          height: 24px;
-        }
-
-        .double-slider-input::-moz-range-track {
-          background: transparent;
-          border: none;
-          height: 24px;
-        }
-
-        .double-slider-input::-webkit-slider-thumb {
-          pointer-events: auto;
-          -webkit-appearance: none;
-          appearance: none;
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          background: #ffffff;
-          border: 2px solid var(--primary);
-          cursor: pointer;
-          box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
-          transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.15s;
-          margin-top: -5px; /* Center it on -webkit */
-        }
-
-        .double-slider-input::-webkit-slider-thumb:hover {
-          transform: scale(1.3);
-          background-color: var(--primary-hover);
-          border-color: #ffffff;
-        }
-
-        .double-slider-input::-moz-range-thumb {
-          pointer-events: auto;
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          background: #ffffff;
-          border: 2px solid var(--primary);
-          cursor: pointer;
-          box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
-          transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.15s;
-        }
-
-        .double-slider-input::-moz-range-thumb:hover {
-          transform: scale(1.3);
-          background-color: var(--primary-hover);
-          border-color: #ffffff;
-        }
-
-        .trim-actions-row {
-          display: flex;
-          justify-content: flex-end;
-          gap: 8px;
-          border-top: 1px solid var(--border);
-          padding-top: 8px;
-        }
-
-        .btn-sm {
-          padding: 6px 12px;
-          font-size: 0.8rem;
-          border-radius: 6px;
-        }
-
-        .trim-highlight-bar {
-          position: absolute;
-          top: 0;
-          bottom: 0;
-          background: rgba(124, 58, 237, 0.4);
-          border-left: 2px solid var(--primary);
-          border-right: 2px solid var(--primary);
-          pointer-events: none;
-          z-index: 2;
-        }
-
-        /* Export Overlay styles */
-        .export-overlay {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(5, 6, 8, 0.85);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 100;
-          backdrop-filter: blur(8px);
-          -webkit-backdrop-filter: blur(8px);
-        }
-
-        .export-modal {
-          width: 90%;
-          max-width: 380px;
-          padding: 32px 24px;
-          border-radius: 20px;
-          text-align: center;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          box-shadow: var(--shadow-lg);
-          border: 1px solid var(--border);
-          background: rgba(24, 27, 40, 0.95);
-        }
-
-        .export-title {
-          font-size: 1.15rem;
-          font-weight: 600;
-          color: var(--text-primary);
-          margin-bottom: 6px;
-        }
-
-        .export-desc {
-          font-size: 0.85rem;
-          color: var(--text-secondary);
-          margin-bottom: 24px;
-        }
-
-        .viewport-spinner-container {
-          position: relative;
-          width: 80px;
-          height: 80px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin-bottom: 16px;
-        }
-
-        .viewport-spinner {
-          width: 100%;
-          height: 100%;
-          transform: rotate(-90deg);
-        }
-
-        .viewport-spinner .path-bg {
-          stroke: rgba(255, 255, 255, 0.05);
-        }
-
-        .viewport-spinner .path-fg {
-          stroke: var(--primary);
-          stroke-linecap: round;
-          transition: stroke-dashoffset 0.15s ease;
-        }
-
-        .viewport-progress-percentage {
-          position: absolute;
-          font-size: 1.1rem;
-          font-weight: 700;
-          color: var(--text-primary);
-        }
-      `}</style>
     </div>
   );
 }
