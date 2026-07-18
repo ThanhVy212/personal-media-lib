@@ -15,6 +15,7 @@ import {
   Download,
   X,
 } from "lucide-react";
+import { ffmpegHelper } from "../utils/ffmpegHelper.js";
 
 export default function VideoPlayer({
   src,
@@ -48,8 +49,6 @@ export default function VideoPlayer({
   const videoRef = useRef(null);
   const timelineRef = useRef(null);
   const controlsTimeoutRef = useRef(null);
-  const exportIntervalRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
 
   const speedOptions = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
@@ -100,20 +99,6 @@ export default function VideoPlayer({
     setEndTime(0);
     setIsExporting(false);
     setExportProgress(0);
-
-    // Cleanup export resources on source change
-    if (exportIntervalRef.current) {
-      clearInterval(exportIntervalRef.current);
-      exportIntervalRef.current = null;
-    }
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current = null;
-    }
-    const video = videoRef.current;
-    if (video) {
-      video.removeEventListener("seeked", video._exportSeekHandler);
-    }
   }, [src]);
 
   // Sync volume with browser audio level
@@ -292,197 +277,66 @@ export default function VideoPlayer({
     setHoverTime(null);
   };
 
-  const handleExportVideo = () => {
+  const handleExportVideo = async () => {
     const video = videoRef.current;
     if (!video) return;
 
     // Re-entry guard
     if (isExporting) return;
 
-    const streamFn = video.captureStream || video.mozCaptureStream;
-    if (!streamFn) {
-      alert("Your browser does not support client-side video exporting. Please try Chrome, Firefox, or Edge.");
-      return;
-    }
-
     // Set export state before any async operations
     setIsExporting(true);
     setIsPlaying(false);
     video.pause();
-    video.currentTime = startTime;
 
-    const originalMuted = video.muted;
-    const originalVolume = video.volume;
-    const originalPlaybackRate = video.playbackRate;
-    let exportCancelled = false;
-    let objectUrl = null;
+    try {
+      // Fetch the original video file
+      const response = await fetch(src);
+      const videoBlob = await response.blob();
+      const videoFile = new File([videoBlob], name, { type: videoBlob.type });
 
-    // Centralized cleanup finalizer (idempotent)
-    const cleanupExport = (restoreSettings = true) => {
-      // Clear interval
-      if (exportIntervalRef.current) {
-        clearInterval(exportIntervalRef.current);
-        exportIntervalRef.current = null;
-      }
+      // Show loading state
+      setExportProgress(1);
+      
+      const onProgress = (progress) => {
+        // Direct progress from FFmpeg helper (0-100)
+        setExportProgress(Math.min(progress, 99));
+      };
 
-      // Stop and release recorder
-      const recorder = mediaRecorderRef.current;
-      if (recorder && recorder.state !== "inactive") {
-        recorder.stop();
-      }
-      mediaRecorderRef.current = null;
+      // Use FFmpeg for lossless trimming with -c copy
+      const trimmedBlob = await ffmpegHelper.trimVideoLossless(
+        videoFile,
+        startTime,
+        endTime,
+        onProgress
+      );
 
-      // Revoke object URL
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-        objectUrl = null;
-      }
+      setExportProgress(100);
 
-      // Restore video settings
-      if (restoreSettings && video) {
-        video.playbackRate = originalPlaybackRate;
-        video.muted = originalMuted;
-        video.volume = originalVolume;
-        video.pause();
-        setIsPlaying(false);
-      }
+      // Download the trimmed video
+      const objectUrl = URL.createObjectURL(trimmedBlob);
+      const link = document.createElement("a");
+      const dotIndex = name.lastIndexOf(".");
+      const baseName = dotIndex !== -1 ? name.substring(0, dotIndex) : name;
+      link.download = `${baseName}-trimmed.mp4`;
+      link.href = objectUrl;
+      link.click();
+      URL.revokeObjectURL(objectUrl);
 
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Failed to export video:", err);
+      alert("Failed to export video. Please try again.");
+    } finally {
       setIsExporting(false);
       setExportProgress(0);
-    };
-
-    const onSeeked = () => {
-      try {
-        const stream = streamFn.call(video);
-<<<<<<< HEAD
-
-        let options = { mimeType: "video/webm;codecs=vp9,opus" };
-=======
-        
-        // Use high quality settings for better output - always try MP4 first
-        let options = { mimeType: "video/mp4", videoBitsPerSecond: 8000000 };
->>>>>>> 152bded (move all style file to app.css)
-        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-          options = { mimeType: "video/webm;codecs=vp9,opus", videoBitsPerSecond: 8000000 };
-        }
-        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-          options = { mimeType: "video/webm;codecs=vp8,opus", videoBitsPerSecond: 8000000 };
-        }
-        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-          options = { mimeType: "video/webm", videoBitsPerSecond: 8000000 };
-        }
-
-        const mediaRecorder = new MediaRecorder(stream, options);
-        mediaRecorderRef.current = mediaRecorder;
-        const chunks = [];
-
-        mediaRecorder.ondataavailable = (e) => {
-          if (e.data && e.data.size > 0) {
-            chunks.push(e.data);
-          }
-        };
-
-        mediaRecorder.onstop = () => {
-          cleanupExport();
-
-          // Only download if not cancelled
-          if (!exportCancelled && chunks.length > 0) {
-            const mimeStr = options.mimeType || "video/webm";
-            // Always save as .mp4 extension for consistency
-            const blob = new Blob(chunks, { type: mimeStr });
-            objectUrl = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            const dotIndex = name.lastIndexOf(".");
-            const baseName = dotIndex !== -1 ? name.substring(0, dotIndex) : name;
-<<<<<<< HEAD
-            const extension = mimeStr.includes("mp4") ? ".mp4" : ".webm";
-            link.download = `${baseName}-trimmed${extension}`;
-            link.href = objectUrl;
-=======
-            link.download = `${baseName}-trimmed.mp4`;
-            link.href = url;
->>>>>>> 152bded (move all style file to app.css)
-            link.click();
-            setIsEditing(false);
-          }
-        };
-
-        setExportProgress(0);
-
-        video.muted = true;
-<<<<<<< HEAD
-        video.playbackRate = 1;
-=======
-        video.playbackRate = 1.0; // Normal speed for better quality
->>>>>>> 152bded (move all style file to app.css)
-
-        mediaRecorder.start();
-        video.play();
-        setIsPlaying(true);
-
-        const interval = setInterval(() => {
-          const curr = video.currentTime;
-          if (video.ended || curr >= endTime) {
-            clearInterval(interval);
-            mediaRecorder.stop();
-          } else {
-            const progress = ((curr - startTime) / (endTime - startTime)) * 100;
-            setExportProgress(Math.min(99, Math.round(progress)));
-          }
-        }, 100);
-        exportIntervalRef.current = interval;
-
-      } catch (err) {
-        console.error("Failed to export video:", err);
-        alert("Failed to export video. Please try again.");
-        cleanupExport();
-      }
-    };
-
-    // Store handler reference for cleanup and use once option
-    video._exportSeekHandler = onSeeked;
-    video.addEventListener("seeked", onSeeked, { once: true });
-
-    // Store cancellation flag setter for handleCancelExport
-    video._setExportCancelled = () => { exportCancelled = true; };
+    }
   };
 
   const handleCancelExport = () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    // Set cancellation flag to prevent download in onstop
-    if (video._setExportCancelled) {
-      video._setExportCancelled();
-    }
-
-    // Clear interval
-    if (exportIntervalRef.current) {
-      clearInterval(exportIntervalRef.current);
-      exportIntervalRef.current = null;
-    }
-
-    // Stop recorder
-    const mediaRecorder = mediaRecorderRef.current;
-    if (mediaRecorder && mediaRecorder.state !== "inactive") {
-      mediaRecorder.stop();
-    }
-    mediaRecorderRef.current = null;
-
-    // Remove seeked listener
-    if (video._exportSeekHandler) {
-      video.removeEventListener("seeked", video._exportSeekHandler);
-      video._exportSeekHandler = null;
-    }
-
-    // Restore video state
-    video.pause();
-    setIsPlaying(false);
-    video.playbackRate = 1;
-    video.muted = false;
-
-    setIsExporting(false);
-    setExportProgress(0);
+    // FFmpeg operations cannot be cancelled once started
+    // This button is now just for UI consistency
+    alert("Export cannot be cancelled once started with FFmpeg.");
   };
 
   const formatTime = (timeInSeconds) => {
