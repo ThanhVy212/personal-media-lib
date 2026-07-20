@@ -3,6 +3,7 @@ import UploadZone from "./components/UploadZone";
 import Sidebar from "./components/Sidebar";
 import ImageViewer from "./components/ImageViewer";
 import VideoPlayer from "./components/VideoPlayer";
+import YouTubePlayer from "./components/YouTubePlayer";
 import {
   Menu,
   FolderOpen,
@@ -11,6 +12,13 @@ import {
   Sparkles,
 } from "lucide-react";
 import "./App.css";
+import { parseMediaLink, isBlobMediaUrl } from "./utils/mediaUrl.js";
+
+function revokeMediaUrl(item) {
+  if (item?.url && isBlobMediaUrl(item.url)) {
+    URL.revokeObjectURL(item.url);
+  }
+}
 
 export default function App() {
   const [mediaList, setMediaList] = useState([]);
@@ -25,7 +33,7 @@ export default function App() {
   useEffect(() => {
     return () => {
       mediaList.forEach((item) => {
-        URL.revokeObjectURL(item.url);
+        revokeMediaUrl(item);
       });
     };
   }, []);
@@ -124,10 +132,45 @@ export default function App() {
     });
   };
 
+  const handleAddMediaLink = (rawUrl) => {
+    const parsed = parseMediaLink(rawUrl);
+    if (!parsed) {
+      showToast(
+        "Link không hợp lệ. Hỗ trợ YouTube hoặc video trực tiếp (.mp4, .webm, …).",
+        "info",
+      );
+      return;
+    }
+
+    const item = {
+      id: Math.random().toString(36).substring(2, 9) + Date.now(),
+      file: null,
+      name: parsed.name,
+      url: parsed.type === "youtube" ? parsed.url : parsed.url,
+      type: parsed.type,
+      videoId: parsed.videoId,
+      size: 0,
+      status: "completed",
+      progress: 100,
+      isRemote: true,
+    };
+
+    setMediaList((prev) => {
+      const updated = [...prev, item];
+      setActiveIndex(updated.length - 1);
+      return updated;
+    });
+
+    showToast(
+      parsed.type === "youtube" ? "Đã thêm video YouTube" : "Đã thêm link video",
+      "success",
+    );
+  };
+
   const handleDelete = (indexToDelete) => {
     const item = mediaList[indexToDelete];
     if (item) {
-      URL.revokeObjectURL(item.url);
+      revokeMediaUrl(item);
     }
 
     const newList = mediaList.filter((_, i) => i !== indexToDelete);
@@ -153,7 +196,7 @@ export default function App() {
       )
     ) {
       mediaList.forEach((item) => {
-        URL.revokeObjectURL(item.url);
+        revokeMediaUrl(item);
       });
       setMediaList([]);
       setActiveIndex("upload");
@@ -249,7 +292,11 @@ export default function App() {
 
         <main className="app-viewport">
           {activeIndex === "upload" ? (
-            <UploadZone onFilesSelected={handleFilesSelected} mediaList={mediaList} />
+            <UploadZone
+              onFilesSelected={handleFilesSelected}
+              onAddMediaLink={handleAddMediaLink}
+              mediaList={mediaList}
+            />
           ) : activeMedia ? (
             activeMedia.status === "uploading" ? (
               <div className="media-uploading-viewport animate-fade-in">
@@ -288,6 +335,19 @@ export default function App() {
                 hasNext={
                   activeIndex !== "upload" && activeIndex < mediaList.length - 1
                 }
+                onToast={showToast}
+              />
+            ) : activeMedia.type === "youtube" ? (
+              <YouTubePlayer
+                videoId={activeMedia.videoId}
+                name={activeMedia.name}
+                watchUrl={activeMedia.url}
+                onPrev={handlePrev}
+                onNext={handleNext}
+                hasPrev={activeIndex !== "upload" && activeIndex > 0}
+                hasNext={
+                  activeIndex !== "upload" && activeIndex < mediaList.length - 1
+                }
               />
             ) : (
               <VideoPlayer
@@ -299,6 +359,7 @@ export default function App() {
                 hasNext={
                   activeIndex !== "upload" && activeIndex < mediaList.length - 1
                 }
+                allowTrim={!activeMedia.isRemote}
               />
             )
           ) : (

@@ -7,7 +7,9 @@ import {
   Search,
   FolderOpen,
   Upload,
+  Video,
 } from "lucide-react";
+import { youtubeThumbnailUrl } from "../utils/mediaUrl.js";
 
 export default function Sidebar({
   mediaList,
@@ -167,6 +169,16 @@ export default function Sidebar({
                       className="sidebar-thumbnail"
                       loading="lazy"
                     />
+                  ) : item.type === "youtube" ? (
+                    <div className="video-thumbnail-container youtube-thumb">
+                      <img
+                        src={youtubeThumbnailUrl(item.videoId)}
+                        alt={item.name}
+                        className="sidebar-thumbnail"
+                        loading="lazy"
+                      />
+                      <Video className="video-overlay-icon youtube-overlay-icon" size={16} />
+                    </div>
                   ) : (
                     <div className="video-thumbnail-container">
                       <video
@@ -190,8 +202,12 @@ export default function Sidebar({
                     </span>
                   ) : (
                     <span className="media-meta">
-                      {item.type === "image" ? "Image" : "Video"} •{" "}
-                      {formatSize(item.size)}
+                      {item.type === "image"
+                        ? "Image"
+                        : item.type === "youtube"
+                          ? "YouTube"
+                          : "Video"}
+                      {item.size > 0 ? ` • ${formatSize(item.size)}` : item.isRemote ? " • Link" : ""}
                     </span>
                   )}
                 </div>

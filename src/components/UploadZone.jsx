@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Image, Video, FileText } from 'lucide-react';
+import { Upload, Image, Video, FileText, Link2 } from 'lucide-react';
 
-export default function UploadZone({ onFilesSelected, mediaList = [] }) {
+export default function UploadZone({ onFilesSelected, onAddMediaLink, mediaList = [] }) {
   const [isDragging, setIsDragging] = useState(false);
+  const [linkInput, setLinkInput] = useState('');
   const fileInputRef = useRef(null);
 
   const formatSize = (bytes) => {
@@ -18,7 +19,6 @@ export default function UploadZone({ onFilesSelected, mediaList = [] }) {
   const processFiles = (files) => {
     if (!files || files.length === 0) return;
     
-    // Filter for images and videos
     const mediaFiles = Array.from(files).filter(
       (file) => file.type.startsWith('image/') || file.type.startsWith('video/')
     );
@@ -45,12 +45,18 @@ export default function UploadZone({ onFilesSelected, mediaList = [] }) {
 
   const handleFileChange = (e) => {
     processFiles(e.target.files);
-    // Reset value to allow selecting the same file again
     e.target.value = '';
   };
 
   const handleClick = () => {
     fileInputRef.current.click();
+  };
+
+  const handleAddLink = (e) => {
+    e.preventDefault();
+    if (!linkInput.trim()) return;
+    onAddMediaLink?.(linkInput);
+    setLinkInput('');
   };
 
   return (
@@ -95,9 +101,32 @@ export default function UploadZone({ onFilesSelected, mediaList = [] }) {
 
         <div className="security-notice">
           <FileText size={12} />
-          <span>All processing is done entirely in your browser. No files are uploaded to any server.</span>
+          <span>Files stay local in the browser. Translation sends the image to OpenAI; video links stream from their source.</span>
         </div>
       </div>
+
+      <form className="media-link-card glassmorphism" onSubmit={handleAddLink}>
+        <div className="media-link-header">
+          <Link2 size={18} />
+          <h3>Thêm link video</h3>
+        </div>
+        <p className="media-link-desc">
+          YouTube (watch, Shorts, youtu.be) hoặc file video trực tiếp (.mp4, .webm).
+        </p>
+        <div className="media-link-row">
+          <Video size={18} className="media-link-yt-icon" />
+          <input
+            type="url"
+            className="media-link-input"
+            placeholder="https://www.youtube.com/watch?v=…"
+            value={linkInput}
+            onChange={(e) => setLinkInput(e.target.value)}
+          />
+          <button type="submit" className="btn btn-primary">
+            Thêm
+          </button>
+        </div>
+      </form>
 
       {uploadingFiles.length > 0 && (
         <div className="active-uploads-container animate-fade-in glassmorphism">

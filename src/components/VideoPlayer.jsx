@@ -24,6 +24,7 @@ export default function VideoPlayer({
   onNext,
   hasPrev,
   hasNext,
+  allowTrim = true,
 }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -662,6 +663,7 @@ export default function VideoPlayer({
             </div>
 
             {/* Scissors trim button */}
+            {allowTrim && (
             <button
               className={`ctrl-btn ${isEditing ? "active-speed" : ""}`}
               onClick={() => {
@@ -677,6 +679,7 @@ export default function VideoPlayer({
             >
               <Scissors size={20} />
             </button>
+            )}
 
             {/* Fullscreen control */}
             <button

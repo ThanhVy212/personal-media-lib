@@ -2186,3 +2186,263 @@
   font-size: 1.1rem;
 }
 
+/* ==========================================
+   Image translation overlay
+   ========================================== */
+.image-transform-layer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+}
+
+.image-stack {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.image-stack .viewer-image {
+  display: block;
+}
+
+.translation-overlay-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.translation-bubble {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 4px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.translation-bubble-text {
+  color: #1a1a2e;
+  font-size: clamp(8px, 1.4vw, 14px);
+  line-height: 1.25;
+  font-weight: 600;
+  text-align: center;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.translate-action-btn {
+  padding: 8px 14px;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.btn-active-translate {
+  background: rgba(124, 58, 237, 0.35);
+  border-color: var(--primary);
+}
+
+.spin-icon {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ==========================================
+   Translate API key modal
+   ========================================== */
+.translate-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 6, 8, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: 16px;
+}
+
+.translate-modal {
+  width: 100%;
+  max-width: 440px;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+}
+
+.translate-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.translate-modal-header h3 {
+  flex: 1;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.translate-modal-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.translate-modal-desc code {
+  font-size: 0.8rem;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.translate-api-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.translate-api-input:focus {
+  border-color: var(--primary);
+}
+
+.translate-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ==========================================
+   Media link input (UploadZone)
+   ========================================== */
+.media-link-card {
+  width: 100%;
+  max-width: 560px;
+  padding: 20px 24px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(24, 27, 40, 0.6);
+}
+
+.media-link-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.media-link-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.media-link-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.media-link-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.media-link-icon {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.media-link-input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.media-link-input:focus {
+  border-color: var(--primary);
+}
+
+/* ==========================================
+   YouTube player
+   ========================================== */
+.youtube-player-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.youtube-embed-wrap {
+  width: 100%;
+  height: 100%;
+  max-width: 1280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.youtube-iframe {
+  width: 100%;
+  height: 100%;
+  max-height: calc(100% - 80px);
+  border: none;
+  border-radius: 8px;
+}
+
+.youtube-player-container:hover .viewer-title-overlay,
+.youtube-player-container:hover .nav-btn,
+.youtube-player-container:hover .viewer-controls {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.youtube-controls {
+  opacity: 0;
+}
+
+.youtube-thumb .youtube-overlay-icon {
+  background: rgba(255, 0, 0, 0.75);
+}
+
+.youtube-player-container:fullscreen .youtube-iframe {
+  max-height: 100%;
+  border-radius: 0;
+}
+
+.youtube-player-container:fullscreen .viewer-controls {
+  bottom: 40px;
+}
+
