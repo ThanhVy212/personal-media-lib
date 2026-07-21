@@ -10,6 +10,7 @@ import {
   AlertCircle,
   FilePlus,
   Sparkles,
+  Download,
 } from "lucide-react";
 import "./App.css";
 import { parseMediaLink, isBlobMediaUrl } from "./utils/mediaUrl.js";
@@ -64,6 +65,37 @@ export default function App() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
 
+  // Natural sort function for alphanumeric sorting
+  const naturalSort = (a, b) => {
+    const nameA = a.name.toLowerCase();
+    const nameB = b.name.toLowerCase();
+    
+    // Split into parts: numbers and non-numbers
+    const splitA = nameA.split(/(\d+)/g);
+    const splitB = nameB.split(/(\d+)/g);
+    
+    for (let i = 0; i < Math.min(splitA.length, splitB.length); i++) {
+      const partA = splitA[i];
+      const partB = splitB[i];
+      
+      // If both parts are numbers, compare numerically
+      if (!isNaN(partA) && !isNaN(partB) && partA !== '' && partB !== '') {
+        const numA = parseInt(partA, 10);
+        const numB = parseInt(partB, 10);
+        if (numA !== numB) {
+          return numA - numB;
+        }
+      } else {
+        // Compare alphabetically
+        if (partA < partB) return -1;
+        if (partA > partB) return 1;
+      }
+    }
+    
+    // If all parts are equal, shorter string comes first
+    return splitA.length - splitB.length;
+  };
+
   const handleFilesSelected = (newFiles) => {
     const items = newFiles.map((file) => {
       const speed = parseFloat((Math.random() * 6 + 2).toFixed(1)); // MB/s (2 to 8)
@@ -82,6 +114,9 @@ export default function App() {
 
     setMediaList((prevList) => {
       const updated = [...prevList, ...items];
+      // Sort the list using natural sort
+      updated.sort(naturalSort);
+      
       // If we don't have any active selection, or if we were on "upload" page and just started,
       // let's keep activeIndex as is, or select first uploading item if activeIndex is null.
       if (activeIndex === null && updated.length > 0) {
@@ -157,7 +192,11 @@ export default function App() {
 
     setMediaList((prev) => {
       const updated = [...prev, item];
-      setActiveIndex(updated.length - 1);
+      // Sort the list using natural sort
+      updated.sort(naturalSort);
+      // Find the new index of the added item
+      const newIndex = updated.findIndex((m) => m.id === item.id);
+      setActiveIndex(newIndex);
       return updated;
     });
 
@@ -204,6 +243,89 @@ export default function App() {
     }
   };
 
+  const handleDownloadAll = async () => {
+    const downloadableFiles = mediaList.filter(
+      (item) => item.file && item.status === "completed"
+    );
+
+    if (downloadableFiles.length === 0) {
+      showToast("No files available to download", "info");
+      return;
+    }
+
+    // Check if File System Access API is supported
+    if ("showDirectoryPicker" in window) {
+      try {
+        const dirHandle = await window.showDirectoryPicker();
+        showToast(
+          `Saving ${downloadableFiles.length} file${downloadableFiles.length > 1 ? "s" : ""} to selected folder...`,
+          "info",
+        );
+
+        for (let i = 0; i < downloadableFiles.length; i++) {
+          const item = downloadableFiles[i];
+          // Get file extension from original name
+          const ext = item.name.includes('.') 
+            ? item.name.substring(item.name.lastIndexOf('.')) 
+            : '';
+          // Create sequential filename
+          const newName = `${i + 1}${ext}`;
+          
+          const fileHandle = await dirHandle.getFileHandle(newName, {
+            create: true,
+          });
+          const writable = await fileHandle.createWritable();
+          await writable.write(item.file);
+          await writable.close();
+          
+          // Add delay between downloads to ensure sequential completion
+          if (i < downloadableFiles.length - 1) {
+            await new Promise((resolve) => setTimeout(resolve, 300));
+          }
+        }
+
+        showToast(
+          `Saved ${downloadableFiles.length} file${downloadableFiles.length > 1 ? "s" : ""} to folder`,
+          "success",
+        );
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          showToast("Error saving files: " + err.message, "info");
+        }
+      }
+    } else {
+      // Fallback to regular download for browsers without File System Access API
+      showToast(
+        `Downloading ${downloadableFiles.length} file${downloadableFiles.length > 1 ? "s" : ""}...`,
+        "info",
+      );
+
+      for (let i = 0; i < downloadableFiles.length; i++) {
+        const item = downloadableFiles[i];
+        // Get file extension from original name
+        const ext = item.name.includes('.') 
+          ? item.name.substring(item.name.lastIndexOf('.')) 
+          : '';
+        // Create sequential filename
+        const newName = `${i + 1}${ext}`;
+        
+        const link = document.createElement("a");
+        link.href = item.url;
+        link.download = newName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        // Add small delay between downloads to avoid browser blocking
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+
+      showToast(
+        `Downloaded ${downloadableFiles.length} file${downloadableFiles.length > 1 ? "s" : ""}`,
+        "success",
+      );
+    }
+  };
+
   const handlePrev = () => {
     if (activeIndex !== "upload" && activeIndex > 0) {
       setActiveIndex(activeIndex - 1);
@@ -225,6 +347,25 @@ export default function App() {
     if (window.innerWidth <= 768) {
       setIsSidebarOpen(false);
     }
+  };
+
+  const handleReorder = (fromIndex, toIndex) => {
+    setMediaList((prevList) => {
+      const newList = [...prevList];
+      const [movedItem] = newList.splice(fromIndex, 1);
+      newList.splice(toIndex, 0, movedItem);
+      
+      // Update activeIndex if needed
+      if (activeIndex === fromIndex) {
+        setActiveIndex(toIndex);
+      } else if (fromIndex < activeIndex && toIndex >= activeIndex) {
+        setActiveIndex(activeIndex - 1);
+      } else if (fromIndex > activeIndex && toIndex <= activeIndex) {
+        setActiveIndex(activeIndex + 1);
+      }
+      
+      return newList;
+    });
   };
 
   const activeMedia =
@@ -258,6 +399,15 @@ export default function App() {
           )}
           <button
             className="btn btn-secondary"
+            onClick={handleDownloadAll}
+            disabled={mediaList.length === 0}
+            title="Download all files"
+          >
+            <Download size={16} />
+            <span className="btn-label">Download All</span>
+          </button>
+          <button
+            className="btn btn-secondary"
             onClick={() => {
               // Trigger upload trigger via Sidebar file element
               const addBtn = document.querySelector(".add-btn");
@@ -288,6 +438,7 @@ export default function App() {
           onClearAll={handleClearAll}
           isOpen={isSidebarOpen}
           onToggle={toggleSidebar}
+          onReorder={handleReorder}
         />
 
         <main className="app-viewport">

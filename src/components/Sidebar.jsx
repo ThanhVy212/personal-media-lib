@@ -20,9 +20,11 @@ export default function Sidebar({
   onClearAll,
   isOpen,
   onToggle,
+  onReorder,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const fileInputRef = useRef(null);
+  const [draggedIndex, setDraggedIndex] = useState(null);
 
   const formatSize = (bytes) => {
     if (bytes === 0) return "0 Bytes";
@@ -34,6 +36,28 @@ export default function Sidebar({
 
   const handleAddClick = () => {
     fileInputRef.current.click();
+  };
+
+  const handleDragStart = (e, index) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (e, dropIndex) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === dropIndex) return;
+    
+    onReorder(draggedIndex, dropIndex);
+    setDraggedIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
   };
 
   const handleFileChange = (e) => {
@@ -132,8 +156,13 @@ export default function Sidebar({
             return (
               <div
                 key={item.id}
-                className={`media-item ${isActive ? "active" : ""} ${isUploading ? "uploading animate-pulse-border" : ""}`}
+                className={`media-item ${isActive ? "active" : ""} ${isUploading ? "uploading animate-pulse-border" : ""} ${draggedIndex === listIndex ? "dragging" : ""}`}
                 onClick={() => onSelect(listIndex)}
+                draggable={!isUploading}
+                onDragStart={(e) => handleDragStart(e, listIndex)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, listIndex)}
+                onDragEnd={handleDragEnd}
               >
                 <div className="thumbnail-wrapper">
                   {isUploading ? (

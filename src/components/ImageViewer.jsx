@@ -1,12 +1,31 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ZoomIn, ZoomOut, RotateCcw, Maximize, Minimize, ChevronLeft, ChevronRight, Crop, Check, X, Languages, Loader2, Eye, EyeOff, KeyRound } from 'lucide-react';
-import { translateImageRegions, getOpenAiApiKey } from '../utils/openaiTranslate.js';
-import TranslateApiKeyModal from './TranslateApiKeyModal.jsx';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import {
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Maximize,
+  Minimize,
+  ChevronLeft,
+  ChevronRight,
+  Crop,
+  Check,
+  X,
+  Languages,
+  Loader2,
+  Eye,
+  EyeOff,
+  KeyRound,
+} from "lucide-react";
+import {
+  translateImageRegions,
+  getOpenAiApiKey,
+} from "../utils/openaiTranslate.js";
+import TranslateApiKeyModal from "./TranslateApiKeyModal.jsx";
 
-export default function ImageViewer({ 
-  src, 
-  name, 
-  onPrev, 
+export default function ImageViewer({
+  src,
+  name,
+  onPrev,
   onNext,
   hasPrev,
   hasNext,
@@ -21,7 +40,12 @@ export default function ImageViewer({
   // Cropping states
   const [isCropping, setIsCropping] = useState(false);
   const [crop, setCrop] = useState({ x: 10, y: 10, w: 80, h: 80 });
-  const [imageDims, setImageDims] = useState({ left: 0, top: 0, width: 0, height: 0 });
+  const [imageDims, setImageDims] = useState({
+    left: 0,
+    top: 0,
+    width: 0,
+    height: 0,
+  });
 
   const containerRef = useRef(null);
   const imageRef = useRef(null);
@@ -41,7 +65,7 @@ export default function ImageViewer({
         left: imgRect.left - containerRect.left,
         top: imgRect.top - containerRect.top,
         width: imgRect.width,
-        height: imgRect.height
+        height: imgRect.height,
       });
     }
   }, []);
@@ -57,14 +81,14 @@ export default function ImageViewer({
   useEffect(() => {
     if (isCropping) {
       updateImageDims();
-      window.addEventListener('resize', updateImageDims);
-      
+      window.addEventListener("resize", updateImageDims);
+
       // Additional triggers to ensure image bounds are correct
       const timer1 = setTimeout(updateImageDims, 50);
       const timer2 = setTimeout(updateImageDims, 200);
-      
+
       return () => {
-        window.removeEventListener('resize', updateImageDims);
+        window.removeEventListener("resize", updateImageDims);
         clearTimeout(timer1);
         clearTimeout(timer2);
       };
@@ -89,16 +113,15 @@ export default function ImageViewer({
       });
     };
 
-    container.addEventListener('wheel', handleWheel, { passive: false });
+    container.addEventListener("wheel", handleWheel, { passive: false });
     return () => {
-      container.removeEventListener('wheel', handleWheel);
+      container.removeEventListener("wheel", handleWheel);
     };
   }, [isCropping]);
 
   // Prevent page scroll while panning zoomed image on touch
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || isCropping) return;
 
     const handleTouchMove = (e) => {
       if (isDragging && e.touches.length === 1) {
@@ -106,8 +129,10 @@ export default function ImageViewer({
       }
     };
 
-    container.addEventListener('touchmove', handleTouchMove, { passive: false });
-    return () => container.removeEventListener('touchmove', handleTouchMove);
+    container.addEventListener("touchmove", handleTouchMove, {
+      passive: false,
+    });
+    return () => container.removeEventListener("touchmove", handleTouchMove);
   }, [isDragging, isCropping]);
 
   // Listen to Fullscreen API change events
@@ -116,9 +141,9 @@ export default function ImageViewer({
       setIsFullscreen(!!document.fullscreenElement);
     };
 
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, []);
 
@@ -126,27 +151,27 @@ export default function ImageViewer({
   useEffect(() => {
     if (isCropping) return;
     const handleKeyDown = (e) => {
-      if (e.key === 'ArrowLeft' && hasPrev) {
+      if (e.key === "ArrowLeft" && hasPrev) {
         onPrev();
-      } else if (e.key === 'ArrowRight' && hasNext) {
+      } else if (e.key === "ArrowRight" && hasNext) {
         onNext();
-      } else if (e.key === 'Escape') {
+      } else if (e.key === "Escape") {
         handleReset();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onPrev, onNext, hasPrev, hasNext, isCropping]);
 
   const handleZoomIn = () => {
     if (isCropping) return;
-    setScale(prev => Math.min(prev + 0.25, 10));
+    setScale((prev) => Math.min(prev + 0.25, 10));
   };
 
   const handleZoomOut = () => {
     if (isCropping) return;
-    setScale(prev => {
+    setScale((prev) => {
       const next = Math.max(prev - 0.25, 0.2);
       if (next === 1) setOffset({ x: 0, y: 0 });
       return next;
@@ -160,7 +185,7 @@ export default function ImageViewer({
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
-    
+
     if (!document.fullscreenElement) {
       containerRef.current.requestFullscreen().catch((err) => {
         console.error(`Error attempting to enable fullscreen: ${err.message}`);
@@ -171,14 +196,14 @@ export default function ImageViewer({
   };
 
   const handleMouseDown = (e) => {
-    if (isCropping || scale <= 1) return;
+    if (isCropping) return;
     e.preventDefault();
     setIsDragging(true);
     setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
   };
 
   const handleTouchStartPan = (e) => {
-    if (isCropping || scale <= 1 || e.touches.length !== 1) return;
+    if (isCropping || e.touches.length !== 1) return;
     const touch = e.touches[0];
     setIsDragging(true);
     setDragStart({ x: touch.clientX - offset.x, y: touch.clientY - offset.y });
@@ -188,7 +213,7 @@ export default function ImageViewer({
     if (isCropping || !isDragging) return;
     setOffset({
       x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y
+      y: e.clientY - dragStart.y,
     });
   };
 
@@ -197,7 +222,7 @@ export default function ImageViewer({
     const touch = e.touches[0];
     setOffset({
       x: touch.clientX - dragStart.x,
-      y: touch.clientY - dragStart.y
+      y: touch.clientY - dragStart.y,
     });
   };
 
@@ -230,25 +255,37 @@ export default function ImageViewer({
 
       let nextCrop = { ...startCrop };
 
-      if (action === 'drag') {
-        nextCrop.x = Math.max(0, Math.min(startCrop.x + dxPercent, 100 - startCrop.w));
-        nextCrop.y = Math.max(0, Math.min(startCrop.y + dyPercent, 100 - startCrop.h));
+      if (action === "drag") {
+        nextCrop.x = Math.max(
+          0,
+          Math.min(startCrop.x + dxPercent, 100 - startCrop.w),
+        );
+        nextCrop.y = Math.max(
+          0,
+          Math.min(startCrop.y + dyPercent, 100 - startCrop.h),
+        );
       } else {
         const minW = 10;
         const minH = 10;
 
-        if (action.includes('e')) {
-          nextCrop.w = Math.max(minW, Math.min(startCrop.w + dxPercent, 100 - startCrop.x));
+        if (action.includes("e")) {
+          nextCrop.w = Math.max(
+            minW,
+            Math.min(startCrop.w + dxPercent, 100 - startCrop.x),
+          );
         }
-        if (action.includes('w')) {
+        if (action.includes("w")) {
           const maxX = startCrop.x + startCrop.w - minW;
           nextCrop.x = Math.max(0, Math.min(startCrop.x + dxPercent, maxX));
           nextCrop.w = startCrop.x + startCrop.w - nextCrop.x;
         }
-        if (action.includes('s')) {
-          nextCrop.h = Math.max(minH, Math.min(startCrop.h + dyPercent, 100 - startCrop.y));
+        if (action.includes("s")) {
+          nextCrop.h = Math.max(
+            minH,
+            Math.min(startCrop.h + dyPercent, 100 - startCrop.y),
+          );
         }
-        if (action.includes('n')) {
+        if (action.includes("n")) {
           const maxY = startCrop.y + startCrop.h - minH;
           nextCrop.y = Math.max(0, Math.min(startCrop.y + dyPercent, maxY));
           nextCrop.h = startCrop.y + startCrop.h - nextCrop.y;
@@ -259,23 +296,23 @@ export default function ImageViewer({
     };
 
     const handleDragEnd = () => {
-      window.removeEventListener('mousemove', handleDragMove);
-      window.removeEventListener('mouseup', handleDragEnd);
-      window.removeEventListener('touchmove', handleDragMove);
-      window.removeEventListener('touchend', handleDragEnd);
+      window.removeEventListener("mousemove", handleDragMove);
+      window.removeEventListener("mouseup", handleDragEnd);
+      window.removeEventListener("touchmove", handleDragMove);
+      window.removeEventListener("touchend", handleDragEnd);
     };
 
-    window.addEventListener('mousemove', handleDragMove);
-    window.addEventListener('mouseup', handleDragEnd);
-    window.addEventListener('touchmove', handleDragMove, { passive: false });
-    window.addEventListener('touchend', handleDragEnd);
+    window.addEventListener("mousemove", handleDragMove);
+    window.addEventListener("mouseup", handleDragEnd);
+    window.addEventListener("touchmove", handleDragMove, { passive: false });
+    window.addEventListener("touchend", handleDragEnd);
   };
 
   const handleCropDownload = () => {
     const img = imageRef.current;
     if (!img) return;
 
-    const canvas = document.createElement('canvas');
+    const canvas = document.createElement("canvas");
     const naturalWidth = img.naturalWidth;
     const naturalHeight = img.naturalHeight;
 
@@ -287,22 +324,22 @@ export default function ImageViewer({
     canvas.width = sw;
     canvas.height = sh;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
 
     try {
-      const dataUrl = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      const dotIndex = name.lastIndexOf('.');
+      const dataUrl = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      const dotIndex = name.lastIndexOf(".");
       const baseName = dotIndex !== -1 ? name.substring(0, dotIndex) : name;
       link.download = `${baseName}-cropped.png`;
       link.href = dataUrl;
       link.click();
       setIsCropping(false);
     } catch (err) {
-      console.error('Error cropping image:', err);
+      console.error("Error cropping image:", err);
     }
   };
 
@@ -319,15 +356,18 @@ export default function ImageViewer({
       setTranslationRegions(regions);
       setShowTranslation(regions.length > 0);
       if (regions.length === 0) {
-        onToast?.('Không tìm thấy chữ để dịch trên ảnh này.', 'info');
+        onToast?.("Không tìm thấy chữ để dịch trên ảnh này.", "info");
       } else {
-        onToast?.(`Đã dịch ${regions.length} vùng chữ sang tiếng Việt.`, 'success');
+        onToast?.(
+          `Đã dịch ${regions.length} vùng chữ sang tiếng Việt.`,
+          "success",
+        );
       }
     } catch (err) {
-      if (err.message === 'MISSING_API_KEY') {
+      if (err.message === "MISSING_API_KEY") {
         setShowApiKeyModal(true);
       } else {
-        onToast?.(err.message || 'Dịch thất bại.', 'info');
+        onToast?.(err.message || "Dịch thất bại.", "info");
       }
     } finally {
       setIsTranslating(false);
@@ -338,12 +378,14 @@ export default function ImageViewer({
     ? undefined
     : {
         transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-        transition: isDragging ? 'none' : 'transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)',
+        transition: isDragging
+          ? "none"
+          : "transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)",
       };
 
   return (
-    <div 
-      ref={containerRef} 
+    <div
+      ref={containerRef}
       className="image-viewer-container no-select"
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -356,27 +398,39 @@ export default function ImageViewer({
 
       {/* Navigations */}
       {!isCropping && hasPrev && (
-        <button className="nav-btn nav-btn-left" onClick={onPrev} aria-label="Previous image">
+        <button
+          className="nav-btn nav-btn-left"
+          onClick={onPrev}
+          aria-label="Previous image"
+        >
           <ChevronLeft size={28} />
         </button>
       )}
 
       {!isCropping && hasNext && (
-        <button className="nav-btn nav-btn-right" onClick={onNext} aria-label="Next image">
+        <button
+          className="nav-btn nav-btn-right"
+          onClick={onNext}
+          aria-label="Next image"
+        >
           <ChevronRight size={28} />
         </button>
       )}
 
       {/* Primary Image Canvas */}
-      <div 
+      <div
         className="image-canvas"
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStartPan}
         onTouchMove={handleTouchMovePan}
         onTouchEnd={handleMouseUp}
-        style={{ 
-          cursor: isCropping ? 'default' : (scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'),
-          position: 'relative'
+        style={{
+          cursor: isCropping
+            ? "default"
+            : isDragging
+              ? "grabbing"
+              : "grab",
+          position: "relative",
         }}
       >
         {isCropping ? (
@@ -386,7 +440,7 @@ export default function ImageViewer({
             alt={name}
             className="viewer-image"
             onLoad={updateImageDims}
-            style={{ transform: 'none' }}
+            style={{ transform: "none" }}
           />
         ) : (
           <div className="image-transform-layer" style={imageTransformStyle}>
@@ -411,7 +465,9 @@ export default function ImageViewer({
                         height: `${region.height}%`,
                       }}
                     >
-                      <span className="translation-bubble-text">{region.translated}</span>
+                      <span className="translation-bubble-text">
+                        {region.translated}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -421,24 +477,24 @@ export default function ImageViewer({
         )}
 
         {isCropping && (
-          <div 
+          <div
             className="crop-overlay-wrapper"
             style={{
               left: `${imageDims.left}px`,
               top: `${imageDims.top}px`,
               width: `${imageDims.width}px`,
-              height: `${imageDims.height}px`
+              height: `${imageDims.height}px`,
             }}
           >
-            <div 
+            <div
               className="crop-box"
-              onMouseDown={(e) => handleDragStart(e, 'drag')}
-              onTouchStart={(e) => handleDragStart(e, 'drag')}
+              onMouseDown={(e) => handleDragStart(e, "drag")}
+              onTouchStart={(e) => handleDragStart(e, "drag")}
               style={{
                 left: `${crop.x}%`,
                 top: `${crop.y}%`,
                 width: `${crop.w}%`,
-                height: `${crop.h}%`
+                height: `${crop.h}%`,
               }}
             >
               {/* Grid Lines for Rule of Thirds */}
@@ -448,16 +504,48 @@ export default function ImageViewer({
               <div className="crop-grid-line-v2"></div>
 
               {/* Corner handles (L-shaped) */}
-              <div className="crop-handle-corner crop-handle-nw" onMouseDown={(e) => handleDragStart(e, 'nw')} onTouchStart={(e) => handleDragStart(e, 'nw')}></div>
-              <div className="crop-handle-corner crop-handle-ne" onMouseDown={(e) => handleDragStart(e, 'ne')} onTouchStart={(e) => handleDragStart(e, 'ne')}></div>
-              <div className="crop-handle-corner crop-handle-se" onMouseDown={(e) => handleDragStart(e, 'se')} onTouchStart={(e) => handleDragStart(e, 'se')}></div>
-              <div className="crop-handle-corner crop-handle-sw" onMouseDown={(e) => handleDragStart(e, 'sw')} onTouchStart={(e) => handleDragStart(e, 'sw')}></div>
+              <div
+                className="crop-handle-corner crop-handle-nw"
+                onMouseDown={(e) => handleDragStart(e, "nw")}
+                onTouchStart={(e) => handleDragStart(e, "nw")}
+              ></div>
+              <div
+                className="crop-handle-corner crop-handle-ne"
+                onMouseDown={(e) => handleDragStart(e, "ne")}
+                onTouchStart={(e) => handleDragStart(e, "ne")}
+              ></div>
+              <div
+                className="crop-handle-corner crop-handle-se"
+                onMouseDown={(e) => handleDragStart(e, "se")}
+                onTouchStart={(e) => handleDragStart(e, "se")}
+              ></div>
+              <div
+                className="crop-handle-corner crop-handle-sw"
+                onMouseDown={(e) => handleDragStart(e, "sw")}
+                onTouchStart={(e) => handleDragStart(e, "sw")}
+              ></div>
 
               {/* Edge handles */}
-              <div className="crop-handle-edge crop-handle-n" onMouseDown={(e) => handleDragStart(e, 'n')} onTouchStart={(e) => handleDragStart(e, 'n')}></div>
-              <div className="crop-handle-edge crop-handle-s" onMouseDown={(e) => handleDragStart(e, 's')} onTouchStart={(e) => handleDragStart(e, 's')}></div>
-              <div className="crop-handle-edge crop-handle-w" onMouseDown={(e) => handleDragStart(e, 'w')} onTouchStart={(e) => handleDragStart(e, 'w')}></div>
-              <div className="crop-handle-edge crop-handle-e" onMouseDown={(e) => handleDragStart(e, 'e')} onTouchStart={(e) => handleDragStart(e, 'e')}></div>
+              <div
+                className="crop-handle-edge crop-handle-n"
+                onMouseDown={(e) => handleDragStart(e, "n")}
+                onTouchStart={(e) => handleDragStart(e, "n")}
+              ></div>
+              <div
+                className="crop-handle-edge crop-handle-s"
+                onMouseDown={(e) => handleDragStart(e, "s")}
+                onTouchStart={(e) => handleDragStart(e, "s")}
+              ></div>
+              <div
+                className="crop-handle-edge crop-handle-w"
+                onMouseDown={(e) => handleDragStart(e, "w")}
+                onTouchStart={(e) => handleDragStart(e, "w")}
+              ></div>
+              <div
+                className="crop-handle-edge crop-handle-e"
+                onMouseDown={(e) => handleDragStart(e, "e")}
+                onTouchStart={(e) => handleDragStart(e, "e")}
+              ></div>
             </div>
           </div>
         )}
@@ -465,8 +553,18 @@ export default function ImageViewer({
 
       {/* Bottom Floating Control Bar */}
       {isCropping ? (
-        <div className="viewer-controls glassmorphism" style={{ opacity: 1, transform: 'translateY(0)', pointerEvents: 'auto' }}>
-          <button className="btn btn-danger" onClick={() => setIsCropping(false)}>
+        <div
+          className="viewer-controls glassmorphism"
+          style={{
+            opacity: 1,
+            transform: "translateY(0)",
+            pointerEvents: "auto",
+          }}
+        >
+          <button
+            className="btn btn-danger"
+            onClick={() => setIsCropping(false)}
+          >
             <X size={16} />
             <span>Cancel</span>
           </button>
@@ -477,32 +575,53 @@ export default function ImageViewer({
         </div>
       ) : (
         <div className="viewer-controls glassmorphism">
-          <button 
-            className="btn btn-icon btn-secondary" 
+          handleZoomOut
+          <button
+            className="btn btn-icon btn-secondary"
             onClick={() => {
               handleReset();
               setIsCropping(true);
               setCrop({ x: 15, y: 15, w: 70, h: 70 });
-            }} 
+            }}
             data-tooltip="Crop Image"
           >
             <Crop size={18} />
           </button>
           <div className="controls-separator"></div>
-          <button className="btn btn-icon btn-secondary" onClick={handleZoomOut} data-tooltip="Zoom Out">
+          <button
+            className="btn btn-icon btn-secondary"
+            onClick={handleZoomOut}
+            data-tooltip="Zoom Out"
+          >
             <ZoomOut size={18} />
           </button>
-          <span className="scale-display" onClick={handleReset} title="Double click image to reset">
+          <span
+            className="scale-display"
+            onClick={handleReset}
+            title="Double click image to reset"
+          >
             {scalePercent}%
           </span>
-          <button className="btn btn-icon btn-secondary" onClick={handleZoomIn} data-tooltip="Zoom In">
+          <button
+            className="btn btn-icon btn-secondary"
+            onClick={handleZoomIn}
+            data-tooltip="Zoom In"
+          >
             <ZoomIn size={18} />
           </button>
           <div className="controls-separator"></div>
-          <button className="btn btn-icon btn-secondary" onClick={handleReset} data-tooltip="Reset Zoom">
+          <button
+            className="btn btn-icon btn-secondary"
+            onClick={handleReset}
+            data-tooltip="Reset Zoom"
+          >
             <RotateCcw size={18} />
           </button>
-          <button className="btn btn-icon btn-secondary" onClick={toggleFullscreen} data-tooltip={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
+          <button
+            className="btn btn-icon btn-secondary"
+            onClick={toggleFullscreen}
+            data-tooltip={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+          >
             {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
           </button>
           <div className="controls-separator"></div>
@@ -515,9 +634,9 @@ export default function ImageViewer({
           </button>
           {translationRegions.length > 0 && (
             <button
-              className={`btn btn-icon btn-secondary ${showTranslation ? 'btn-active-translate' : ''}`}
+              className={`btn btn-icon btn-secondary ${showTranslation ? "btn-active-translate" : ""}`}
               onClick={() => setShowTranslation((v) => !v)}
-              data-tooltip={showTranslation ? 'Ẩn bản dịch' : 'Hiện bản dịch'}
+              data-tooltip={showTranslation ? "Ẩn bản dịch" : "Hiện bản dịch"}
             >
               {showTranslation ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -528,8 +647,12 @@ export default function ImageViewer({
             disabled={isTranslating}
             data-tooltip="Dịch chữ trên ảnh (EN → VI)"
           >
-            {isTranslating ? <Loader2 size={18} className="spin-icon" /> : <Languages size={18} />}
-            <span>{isTranslating ? 'Đang dịch…' : 'Dịch'}</span>
+            {isTranslating ? (
+              <Loader2 size={18} className="spin-icon" />
+            ) : (
+              <Languages size={18} />
+            )}
+            <span>{isTranslating ? "Đang dịch…" : "Dịch"}</span>
           </button>
         </div>
       )}
@@ -537,10 +660,9 @@ export default function ImageViewer({
       {showApiKeyModal && (
         <TranslateApiKeyModal
           onClose={() => setShowApiKeyModal(false)}
-          onSaved={() => onToast?.('Đã lưu API key.', 'success')}
+          onSaved={() => onToast?.("Đã lưu API key.", "success")}
         />
       )}
-
     </div>
   );
 }

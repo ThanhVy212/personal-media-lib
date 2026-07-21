@@ -1060,6 +1060,13 @@
   transform: translateX(2px);
 }
 
+.media-item.dragging {
+  opacity: 0.5;
+  background: var(--primary-light);
+  border: 2px dashed var(--primary);
+  cursor: grabbing;
+}
+
 .media-item.active {
   background: var(--primary-light);
   border-color: rgba(124, 58, 237, 0.3);
