@@ -8,6 +8,8 @@ import {
   FolderOpen,
   Upload,
   Video,
+  Music,
+  ArrowUpDown,
 } from "lucide-react";
 import { youtubeThumbnailUrl } from "../utils/mediaUrl.js";
 
@@ -21,6 +23,7 @@ export default function Sidebar({
   isOpen,
   onToggle,
   onReorder,
+  onSortAZ,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const fileInputRef = useRef(null);
@@ -64,7 +67,9 @@ export default function Sidebar({
     if (e.target.files && e.target.files.length > 0) {
       const mediaFiles = Array.from(e.target.files).filter(
         (file) =>
-          file.type.startsWith("image/") || file.type.startsWith("video/"),
+          file.type.startsWith("image/") ||
+          file.type.startsWith("video/") ||
+          file.type.startsWith("audio/"),
       );
       if (mediaFiles.length > 0) {
         onAddFiles(mediaFiles);
@@ -84,7 +89,7 @@ export default function Sidebar({
         ref={fileInputRef}
         onChange={handleFileChange}
         multiple
-        accept="image/*,video/*"
+        accept="image/*,video/*,audio/*"
         className="hidden-input"
       />
 
@@ -126,20 +131,30 @@ export default function Sidebar({
         </div>
       </div>
 
-      <div className="search-box-container">
-        <Search className="search-icon" size={16} />
-        <input
-          type="text"
-          placeholder="Search files..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="search-input"
-        />
-        {searchQuery && (
-          <button className="search-clear" onClick={() => setSearchQuery("")}>
-            <X size={14} />
-          </button>
-        )}
+      <div className="search-sort-row">
+        <div className="search-box-container">
+          <Search className="search-icon" size={16} />
+          <input
+            type="text"
+            placeholder="Search files..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+          />
+          {searchQuery && (
+            <button className="search-clear" onClick={() => setSearchQuery("")}>
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        <button
+          className="btn btn-secondary sort-az-btn"
+          onClick={onSortAZ}
+          title="Sắp xếp danh sách theo tên từ A->Z"
+          disabled={mediaList.length < 2}
+        >
+          <ArrowUpDown size={16} />
+        </button>
       </div>
 
       <div className="media-list-container">
@@ -208,14 +223,30 @@ export default function Sidebar({
                       />
                       <Video className="video-overlay-icon youtube-overlay-icon" size={16} />
                     </div>
+                  ) : item.type === "audio" ? (
+                    <div className="video-thumbnail-container audio-thumb">
+                      <div className="sidebar-audio-placeholder">
+                        <Music className="audio-placeholder-icon" size={20} />
+                      </div>
+                      <Music className="video-overlay-icon" size={16} />
+                    </div>
                   ) : (
                     <div className="video-thumbnail-container">
-                      <video
-                        src={item.url}
-                        className="sidebar-thumbnail"
-                        preload="metadata"
-                        muted
-                      />
+                      {item.thumbnailUrl ? (
+                        <img
+                          src={item.thumbnailUrl}
+                          alt={item.name}
+                          className="sidebar-thumbnail"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <video
+                          src={item.url}
+                          className="sidebar-thumbnail"
+                          preload="metadata"
+                          muted
+                        />
+                      )}
                       <Film className="video-overlay-icon" size={16} />
                     </div>
                   )}
@@ -235,7 +266,9 @@ export default function Sidebar({
                         ? "Image"
                         : item.type === "youtube"
                           ? "YouTube"
-                          : "Video"}
+                          : item.type === "audio"
+                            ? "Audio"
+                            : "Video"}
                       {item.size > 0 ? ` • ${formatSize(item.size)}` : item.isRemote ? " • Link" : ""}
                     </span>
                   )}
