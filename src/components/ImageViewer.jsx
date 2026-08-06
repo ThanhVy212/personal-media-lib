@@ -15,6 +15,8 @@ import {
   Eye,
   EyeOff,
   KeyRound,
+  Download,
+  Sliders,
 } from "lucide-react";
 import {
   translateImageRegions,
@@ -55,6 +57,126 @@ export default function ImageViewer({
   const [isTranslating, setIsTranslating] = useState(false);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
 
+  // Watermarking states
+  const [isWatermarking, setIsWatermarking] = useState(false);
+  const [watermarkType, setWatermarkType] = useState("text"); // 'text' or 'logo'
+  const [watermarkText, setWatermarkText] = useState("© ThanhVy212");
+  const [watermarkLogoUrl, setWatermarkLogoUrl] = useState(null);
+  const [watermarkColor, setWatermarkColor] = useState("#ffffff");
+  const [watermarkSize, setWatermarkSize] = useState(24);
+  const [watermarkScale, setWatermarkScale] = useState(15); // logo scale in %
+  const [watermarkOpacity, setWatermarkOpacity] = useState(0.6);
+  const [watermarkPos, setWatermarkPos] = useState("bottom-right"); // 'top-left', 'top-right', 'bottom-left', 'bottom-right', 'center'
+
+  const handleExportWatermarkedImage = () => {
+    const img = imageRef.current;
+    if (!img) return;
+
+    const canvas = document.createElement("canvas");
+    const naturalWidth = img.naturalWidth;
+    const naturalHeight = img.naturalHeight;
+
+    canvas.width = naturalWidth;
+    canvas.height = naturalHeight;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Draw base image
+    ctx.drawImage(img, 0, 0, naturalWidth, naturalHeight);
+
+    // Apply global alpha for watermark
+    ctx.globalAlpha = watermarkOpacity;
+
+    if (watermarkType === "text") {
+      ctx.fillStyle = watermarkColor;
+      // Setup font size relative to image resolution
+      const relativeSize = watermarkSize; 
+      ctx.font = `${relativeSize}px Inter, sans-serif`;
+      ctx.textBaseline = "middle";
+
+      const textWidth = ctx.measureText(watermarkText).width;
+      const textHeight = relativeSize;
+
+      let x = 20;
+      let y = 20;
+
+      if (watermarkPos === "top-left") {
+        x = 40;
+        y = 40 + textHeight / 2;
+      } else if (watermarkPos === "top-right") {
+        x = naturalWidth - textWidth - 40;
+        y = 40 + textHeight / 2;
+      } else if (watermarkPos === "bottom-left") {
+        x = 40;
+        y = naturalHeight - textHeight / 2 - 40;
+      } else if (watermarkPos === "bottom-right") {
+        x = naturalWidth - textWidth - 40;
+        y = naturalHeight - textHeight / 2 - 40;
+      } else if (watermarkPos === "center") {
+        x = (naturalWidth - textWidth) / 2;
+        y = naturalHeight / 2;
+      }
+
+      ctx.fillText(watermarkText, x, y);
+      downloadCanvas();
+    } else if (watermarkType === "logo" && watermarkLogoUrl) {
+      const logoImg = new Image();
+      logoImg.crossOrigin = "anonymous";
+      logoImg.src = watermarkLogoUrl;
+      logoImg.onload = () => {
+        const logoWidth = naturalWidth * (watermarkScale / 100);
+        const logoHeight = (logoImg.naturalHeight / logoImg.naturalWidth) * logoWidth;
+
+        let x = 20;
+        let y = 20;
+
+        if (watermarkPos === "top-left") {
+          x = 40;
+          y = 40;
+        } else if (watermarkPos === "top-right") {
+          x = naturalWidth - logoWidth - 40;
+          y = 40;
+        } else if (watermarkPos === "bottom-left") {
+          x = 40;
+          y = naturalHeight - logoHeight - 40;
+        } else if (watermarkPos === "bottom-right") {
+          x = naturalWidth - logoWidth - 40;
+          y = naturalHeight - logoHeight - 40;
+        } else if (watermarkPos === "center") {
+          x = (naturalWidth - logoWidth) / 2;
+          y = (naturalHeight - logoHeight) / 2;
+        }
+
+        ctx.drawImage(logoImg, x, y, logoWidth, logoHeight);
+        downloadCanvas();
+      };
+      logoImg.onerror = () => {
+        onToast?.("Không thể tải ảnh logo.", "info");
+      };
+      return;
+    } else {
+      downloadCanvas();
+    }
+
+    function downloadCanvas() {
+      try {
+        const dataUrl = canvas.toDataURL("image/png");
+        const link = document.createElement("a");
+        const dotIndex = name.lastIndexOf(".");
+        const baseName = dotIndex !== -1 ? name.substring(0, dotIndex) : name;
+        link.download = `${baseName}-watermarked.png`;
+        link.href = dataUrl;
+        link.click();
+        setIsWatermarking(false);
+        onToast?.("Đã xuất ảnh có watermark thành công!", "success");
+      } catch (err) {
+        console.error("Error watermarking image:", err);
+        onToast?.("Không thể xuất ảnh do lỗi bảo mật (CORS).", "info");
+      }
+    }
+  };
+
   const updateImageDims = useCallback(() => {
     const img = imageRef.current;
     const container = containerRef.current;
@@ -74,6 +196,7 @@ export default function ImageViewer({
   useEffect(() => {
     handleReset();
     setIsCropping(false);
+    setIsWatermarking(false);
     setTranslationRegions([]);
     setShowTranslation(false);
   }, [src]);
@@ -93,7 +216,7 @@ export default function ImageViewer({
         clearTimeout(timer2);
       };
     }
-  }, [isCropping, src]);
+  }, [isCropping, src, updateImageDims]);
 
   // Bind mouse wheel zoom natively (React's synthetic onWheel is passive)
   useEffect(() => {
@@ -452,6 +575,28 @@ export default function ImageViewer({
                 className="viewer-image"
                 onDoubleClick={handleReset}
               />
+              {isWatermarking && (
+                <div
+                  className={`watermark-preview-overlay pos-${watermarkPos}`}
+                  style={{
+                    opacity: watermarkOpacity,
+                    color: watermarkColor,
+                    fontSize: `${watermarkSize}px`,
+                  }}
+                >
+                  {watermarkType === "text" ? (
+                    <span>{watermarkText || "Watermark"}</span>
+                  ) : (
+                    watermarkLogoUrl && (
+                      <img
+                        src={watermarkLogoUrl}
+                        alt="Watermark Logo"
+                        style={{ width: `${watermarkScale * 10}px`, maxWidth: "50%" }}
+                      />
+                    )
+                  )}
+                </div>
+              )}
               {showTranslation && translationRegions.length > 0 && (
                 <div className="translation-overlay-layer">
                   {translationRegions.map((region, index) => (
@@ -587,6 +732,16 @@ export default function ImageViewer({
           >
             <Crop size={18} />
           </button>
+          <button
+            className={`btn btn-icon btn-secondary ${isWatermarking ? "btn-active-translate" : ""}`}
+            onClick={() => {
+              setIsWatermarking(!isWatermarking);
+              setIsCropping(false);
+            }}
+            data-tooltip="Thêm Watermark"
+          >
+            <Sliders size={18} />
+          </button>
           <div className="controls-separator"></div>
           <button
             className="btn btn-icon btn-secondary"
@@ -654,6 +809,150 @@ export default function ImageViewer({
             )}
             <span>{isTranslating ? "Đang dịch…" : "Dịch"}</span>
           </button>
+        </div>
+      )}
+
+      {isWatermarking && (
+        <div className="watermark-sidebar glassmorphism animate-fade-in">
+          <div className="watermark-sidebar-header">
+            <h4>Cấu hình Watermark</h4>
+            <button className="btn btn-icon btn-secondary btn-sm" onClick={() => setIsWatermarking(false)}>
+              <X size={14} />
+            </button>
+          </div>
+          
+          <div className="watermark-sidebar-content">
+            <div className="form-group">
+              <label>Loại Watermark:</label>
+              <div className="watermark-type-row">
+                <button
+                  className={`btn btn-secondary btn-sm flex-1 ${watermarkType === "text" ? "btn-active-tab" : ""}`}
+                  onClick={() => setWatermarkType("text")}
+                >
+                  Chữ (Text)
+                </button>
+                <button
+                  className={`btn btn-secondary btn-sm flex-1 ${watermarkType === "logo" ? "btn-active-tab" : ""}`}
+                  onClick={() => setWatermarkType("logo")}
+                >
+                  Logo (Ảnh)
+                </button>
+              </div>
+            </div>
+
+            {watermarkType === "text" ? (
+              <>
+                <div className="form-group">
+                  <label>Nội dung chữ:</label>
+                  <input
+                    type="text"
+                    value={watermarkText}
+                    onChange={(e) => setWatermarkText(e.target.value)}
+                    className="watermark-input"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Màu chữ:</label>
+                  <div className="color-picker-row">
+                    <input
+                      type="color"
+                      value={watermarkColor}
+                      onChange={(e) => setWatermarkColor(e.target.value)}
+                      className="watermark-color-picker"
+                    />
+                    <input
+                      type="text"
+                      value={watermarkColor}
+                      onChange={(e) => setWatermarkColor(e.target.value)}
+                      className="watermark-input font-mono uppercase"
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Kích thước ({watermarkSize}px):</label>
+                  <input
+                    type="range"
+                    min="12"
+                    max="100"
+                    value={watermarkSize}
+                    onChange={(e) => setWatermarkSize(Number(e.target.value))}
+                    className="custom-slider"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="form-group">
+                  <label>Tải ảnh logo lên:</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        const file = e.target.files[0];
+                        setWatermarkLogoUrl(URL.createObjectURL(file));
+                      }
+                    }}
+                    className="watermark-file-input"
+                  />
+                  {watermarkLogoUrl && (
+                    <div className="logo-preview-box">
+                      <img src={watermarkLogoUrl} alt="Logo" className="logo-preview-img" />
+                    </div>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label>Tỉ lệ logo ({watermarkScale}%):</label>
+                  <input
+                    type="range"
+                    min="5"
+                    max="50"
+                    value={watermarkScale}
+                    onChange={(e) => setWatermarkScale(Number(e.target.value))}
+                    className="custom-slider"
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="form-group">
+              <label>Độ mờ ({Math.round(watermarkOpacity * 100)}%):</label>
+              <input
+                type="range"
+                min="0.1"
+                max="1.0"
+                step="0.05"
+                value={watermarkOpacity}
+                onChange={(e) => setWatermarkOpacity(Number(e.target.value))}
+                className="custom-slider"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Vị trí:</label>
+              <select
+                value={watermarkPos}
+                onChange={(e) => setWatermarkPos(e.target.value)}
+                className="watermark-select"
+              >
+                <option value="top-left">Trên - Trái</option>
+                <option value="top-right">Trên - Phải</option>
+                <option value="bottom-left">Dưới - Trái</option>
+                <option value="bottom-right">Dưới - Phải</option>
+                <option value="center">Ở giữa</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="watermark-sidebar-footer">
+            <button className="btn btn-secondary btn-sm" onClick={() => setIsWatermarking(false)}>
+              Huỷ
+            </button>
+            <button className="btn btn-primary btn-sm flex-1" onClick={handleExportWatermarkedImage}>
+              <Download size={14} />
+              <span>Xuất & Tải về</span>
+            </button>
+          </div>
         </div>
       )}
 

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Image, Video, FileText, Link2 } from 'lucide-react';
+import { Upload, Image, Video, FileText, Link2, Music } from 'lucide-react';
 
 export default function UploadZone({ onFilesSelected, onAddMediaLink, mediaList = [] }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -20,7 +20,7 @@ export default function UploadZone({ onFilesSelected, onAddMediaLink, mediaList 
     if (!files || files.length === 0) return;
     
     const mediaFiles = Array.from(files).filter(
-      (file) => file.type.startsWith('image/') || file.type.startsWith('video/')
+      (file) => file.type.startsWith('image/') || file.type.startsWith('video/') || file.type.startsWith('audio/')
     );
 
     if (mediaFiles.length > 0) {
@@ -73,7 +73,7 @@ export default function UploadZone({ onFilesSelected, onAddMediaLink, mediaList 
           ref={fileInputRef}
           onChange={handleFileChange}
           multiple 
-          accept="image/*,video/*"
+          accept="image/*,video/*,audio/*"
           className="hidden-input"
         />
         
@@ -96,6 +96,9 @@ export default function UploadZone({ onFilesSelected, onAddMediaLink, mediaList 
           </span>
           <span className="info-tag">
             <Video size={14} /> Videos (MP4, WEBM, MOV)
+          </span>
+          <span className="info-tag">
+            <Music size={14} /> Audio (MP3, WAV)
           </span>
         </div>
 

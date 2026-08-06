@@ -4,6 +4,8 @@ import Sidebar from "./components/Sidebar";
 import ImageViewer from "./components/ImageViewer";
 import VideoPlayer from "./components/VideoPlayer";
 import YouTubePlayer from "./components/YouTubePlayer";
+import ImageComparer from "./components/ImageComparer";
+import AudioPlayer from "./components/AudioPlayer";
 import {
   Menu,
   FolderOpen,
@@ -11,9 +13,12 @@ import {
   FilePlus,
   Sparkles,
   Download,
+  Sliders,
 } from "lucide-react";
 import "./App.css";
-import { parseMediaLink, isBlobMediaUrl } from "./utils/mediaUrl.js";
+import { parseMediaLink, isBlobMediaUrl, generateVideoThumbnail } from "./utils/mediaUrl.js";
+
+const GITHUB_REPO_URL = "https://github.com/ThanhVy212/personal-media-lib";
 
 function revokeMediaUrl(item) {
   if (item?.url && isBlobMediaUrl(item.url)) {
@@ -30,10 +35,15 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const toastTimeoutRef = useRef(null);
 
+  const mediaListRef = useRef(mediaList);
+  useEffect(() => {
+    mediaListRef.current = mediaList;
+  }, [mediaList]);
+
   // Clean up object URLs on unmount to avoid browser memory leaks
   useEffect(() => {
     return () => {
-      mediaList.forEach((item) => {
+      mediaListRef.current.forEach((item) => {
         revokeMediaUrl(item);
       });
     };
@@ -104,7 +114,11 @@ export default function App() {
         file,
         name: file.name,
         url: URL.createObjectURL(file),
-        type: file.type.startsWith("video/") ? "video" : "image",
+        type: file.type.startsWith("video/")
+          ? "video"
+          : file.type.startsWith("audio/")
+            ? "audio"
+            : "image",
         size: file.size,
         status: "uploading",
         progress: 0,
@@ -156,6 +170,21 @@ export default function App() {
           );
           
           showToast(`Uploaded "${item.name}"`, "success");
+
+          // Extract thumbnail frame for local videos once upload completes
+          if (item.type === "video") {
+            generateVideoThumbnail(item.url)
+              .then((thumbUrl) => {
+                setMediaList((prevList) =>
+                  prevList.map((m) =>
+                    m.id === item.id ? { ...m, thumbnailUrl: thumbUrl } : m
+                  )
+                );
+              })
+              .catch((err) => {
+                console.error("Error generating thumbnail for", item.name, err);
+              });
+          }
         } else {
           setMediaList((prevList) =>
             prevList.map((m) =>
@@ -204,6 +233,19 @@ export default function App() {
       parsed.type === "youtube" ? "Đã thêm video YouTube" : "Đã thêm link video",
       "success",
     );
+
+    // Extract thumbnail frame for direct link videos in the background
+    if (parsed.type === "video") {
+      generateVideoThumbnail(parsed.url)
+        .then((thumbUrl) => {
+          setMediaList((prevList) =>
+            prevList.map((m) =>
+              m.id === item.id ? { ...m, thumbnailUrl: thumbUrl } : m
+            )
+          );
+        })
+        .catch((e) => console.warn("Failed link thumbnail extraction:", e));
+    }
   };
 
   const handleDelete = (indexToDelete) => {
@@ -369,7 +411,7 @@ export default function App() {
   };
 
   const activeMedia =
-    activeIndex !== null && activeIndex !== "upload"
+    activeIndex !== null && activeIndex !== "upload" && activeIndex !== "compare"
       ? mediaList[activeIndex]
       : null;
 
@@ -398,6 +440,15 @@ export default function App() {
             </span>
           )}
           <button
+            className={`btn btn-secondary ${activeIndex === "compare" ? "btn-active-tab" : ""}`}
+            onClick={() => setActiveIndex(activeIndex === "compare" ? "upload" : "compare")}
+            disabled={mediaList.filter(m => m.type === "image" && m.status === "completed").length < 2}
+            title="So sánh 2 ảnh"
+          >
+            <Sliders size={16} />
+            <span className="btn-label">So sánh</span>
+          </button>
+          <button
             className="btn btn-secondary"
             onClick={handleDownloadAll}
             disabled={mediaList.length === 0}
@@ -417,6 +468,24 @@ export default function App() {
             <FilePlus size={16} />
             <span className="btn-label">Import</span>
           </button>
+          <a
+            href={GITHUB_REPO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-icon btn-secondary github-link"
+            title="View on GitHub"
+            aria-label="View source on GitHub"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+            </svg>
+          </a>
         </div>
       </header>
 
@@ -442,7 +511,12 @@ export default function App() {
         />
 
         <main className="app-viewport">
-          {activeIndex === "upload" ? (
+          {activeIndex === "compare" ? (
+            <ImageComparer
+              mediaList={mediaList}
+              onClose={() => setActiveIndex("upload")}
+            />
+          ) : activeIndex === "upload" ? (
             <UploadZone
               onFilesSelected={handleFilesSelected}
               onAddMediaLink={handleAddMediaLink}
@@ -493,6 +567,17 @@ export default function App() {
                 videoId={activeMedia.videoId}
                 name={activeMedia.name}
                 watchUrl={activeMedia.url}
+                onPrev={handlePrev}
+                onNext={handleNext}
+                hasPrev={activeIndex !== "upload" && activeIndex > 0}
+                hasNext={
+                  activeIndex !== "upload" && activeIndex < mediaList.length - 1
+                }
+              />
+            ) : activeMedia.type === "audio" ? (
+              <AudioPlayer
+                src={activeMedia.url}
+                name={activeMedia.name}
                 onPrev={handlePrev}
                 onNext={handleNext}
                 hasPrev={activeIndex !== "upload" && activeIndex > 0}
