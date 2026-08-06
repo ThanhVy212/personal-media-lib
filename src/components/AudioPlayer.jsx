@@ -41,15 +41,14 @@ export default function AudioPlayer({
 
   const speedOptions = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
-  // Sync state on source change
   useEffect(() => {
     setIsPlaying(false);
     setCurrentTime(0);
     setPlaybackRate(1);
     setShowSpeedMenu(false);
-    
-    // Cleanup Web Audio nodes on source change if necessary
-    // But we usually can reuse the same audio context / connection if source is loaded in the same audio tag
+    if (audioRef.current) {
+      audioRef.current.playbackRate = 1;
+    }
   }, [src]);
 
   // Sync volume with browser audio level
@@ -121,7 +120,10 @@ export default function AudioPlayer({
       analyserRef.current = analyser;
       sourceRef.current = source;
     } catch (err) {
-      console.warn("Failed to initialize Web Audio visualizer (CORS or browser policies):", err);
+      console.warn(
+        "Failed to initialize Web Audio visualizer (CORS or browser policies):",
+        err,
+      );
     }
   };
 
@@ -173,7 +175,7 @@ export default function AudioPlayer({
           gradient.addColorStop(1, "rgba(124, 58, 237, 1)");
 
           ctx.fillStyle = gradient;
-          
+
           // Draw rounded bar
           const h = (barHeight / 255) * height * 0.8;
           ctx.beginPath();
@@ -187,14 +189,14 @@ export default function AudioPlayer({
         ctx.strokeStyle = "rgba(124, 58, 237, 0.3)";
         ctx.lineWidth = 2;
         ctx.beginPath();
-        
+
         const sliceWidth = width / 100;
         let x = 0;
 
         for (let i = 0; i < 100; i++) {
           const time = Date.now() * 0.003;
-          const y = isPlaying 
-            ? (height / 2) + Math.sin(i * 0.15 + time) * 15 // CSS fake wave
+          const y = isPlaying
+            ? height / 2 + Math.sin(i * 0.15 + time) * 15 // CSS fake wave
             : height / 2; // Flat line
 
           if (i === 0) {
@@ -231,7 +233,10 @@ export default function AudioPlayer({
     setupVisualizer();
 
     // Resume AudioContext if suspended (browser security)
-    if (audioContextRef.current && audioContextRef.current.state === "suspended") {
+    if (
+      audioContextRef.current &&
+      audioContextRef.current.state === "suspended"
+    ) {
       audioContextRef.current.resume();
     }
 
@@ -338,7 +343,9 @@ export default function AudioPlayer({
       {/* Main Music Visualizer view card */}
       <div className="audio-visualizer-view">
         <div className="vinyl-record-container">
-          <div className={`vinyl-record-glass ${isPlaying ? "vinyl-playing" : "vinyl-paused"}`}>
+          <div
+            className={`vinyl-record-glass ${isPlaying ? "vinyl-playing" : "vinyl-paused"}`}
+          >
             <div className="vinyl-grooves">
               <div className="vinyl-center-sticker">
                 <Music size={32} className="text-violet-400" />
@@ -357,7 +364,6 @@ export default function AudioPlayer({
 
       {/* Control panel */}
       <div className="player-controls-card glassmorphism">
-        
         {/* Timeline Slider Track */}
         <div
           ref={timelineRef}

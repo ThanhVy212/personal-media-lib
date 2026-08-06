@@ -56,7 +56,7 @@ export default function VideoPlayer({
   const [watermarkScale, setWatermarkScale] = useState(15); // logo scale in %
   const [watermarkOpacity, setWatermarkOpacity] = useState(0.6);
   const [watermarkPos, setWatermarkPos] = useState("bottom-right");
-  
+
   // Show settings popup before exporting
   const [showExportModal, setShowExportModal] = useState(false);
 
@@ -73,6 +73,13 @@ export default function VideoPlayer({
 
       ctx.clearRect(0, 0, videoWidth, videoHeight);
       ctx.globalAlpha = watermarkOpacity;
+
+      const finish = () => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Could not render watermark image"));
+        }, "image/png");
+      };
 
       if (watermarkType === "text") {
         ctx.fillStyle = watermarkColor;
@@ -103,14 +110,15 @@ export default function VideoPlayer({
         }
 
         ctx.fillText(watermarkText, x, y);
-        canvas.toBlob((blob) => resolve(blob), "image/png");
+        finish();
       } else if (watermarkType === "logo" && watermarkLogoUrl) {
         const logoImg = new Image();
         logoImg.crossOrigin = "anonymous";
         logoImg.src = watermarkLogoUrl;
         logoImg.onload = () => {
           const logoWidth = videoWidth * (watermarkScale / 100);
-          const logoHeight = (logoImg.naturalHeight / logoImg.naturalWidth) * logoWidth;
+          const logoHeight =
+            (logoImg.naturalHeight / logoImg.naturalWidth) * logoWidth;
 
           let x = 20;
           let y = 20;
@@ -133,13 +141,13 @@ export default function VideoPlayer({
           }
 
           ctx.drawImage(logoImg, x, y, logoWidth, logoHeight);
-          canvas.toBlob((blob) => resolve(blob), "image/png");
+          finish();
         };
         logoImg.onerror = () => {
           reject(new Error("Failed to load watermark logo image"));
         };
       } else {
-        canvas.toBlob((blob) => resolve(blob), "image/png");
+        reject(new Error("No watermark logo selected"));
       }
     });
   };
@@ -189,7 +197,6 @@ export default function VideoPlayer({
       setShowSpeedMenu(false);
     }
   };
-
 
   // Sync state when video source changes
   useEffect(() => {
@@ -404,7 +411,7 @@ export default function VideoPlayer({
 
       // Show loading state
       setExportProgress(1);
-      
+
       const onProgress = (progress) => {
         // Direct progress from FFmpeg helper (0-100)
         setExportProgress(Math.min(progress, 99));
@@ -413,15 +420,18 @@ export default function VideoPlayer({
       let trimmedBlob;
       if (addWatermark) {
         // Generate watermark PNG image matching video resolution
-        const watermarkBlob = await generateWatermarkBlob(video.videoWidth || 1280, video.videoHeight || 720);
-        
+        const watermarkBlob = await generateWatermarkBlob(
+          video.videoWidth || 1280,
+          video.videoHeight || 720,
+        );
+
         // Use re-encoded trim with watermark
         trimmedBlob = await ffmpegHelper.trimAndWatermarkVideo(
           videoFile,
           startTime,
           endTime,
           watermarkBlob,
-          onProgress
+          onProgress,
         );
       } else {
         // Use FFmpeg for lossless trimming with -c copy
@@ -429,7 +439,7 @@ export default function VideoPlayer({
           videoFile,
           startTime,
           endTime,
-          onProgress
+          onProgress,
         );
       }
 
@@ -520,22 +530,33 @@ export default function VideoPlayer({
           <div className="export-modal glassmorphism animate-fade-in">
             <div className="viewport-spinner-container">
               <svg className="viewport-spinner" viewBox="0 0 50 50">
-                <circle className="path-bg" cx="25" cy="25" r="20" fill="none" strokeWidth="4"></circle>
-                <circle 
-                  className="path-fg" 
-                  cx="25" 
-                  cy="25" 
-                  r="20" 
-                  fill="none" 
+                <circle
+                  className="path-bg"
+                  cx="25"
+                  cy="25"
+                  r="20"
+                  fill="none"
+                  strokeWidth="4"
+                ></circle>
+                <circle
+                  className="path-fg"
+                  cx="25"
+                  cy="25"
+                  r="20"
+                  fill="none"
                   strokeWidth="4"
                   strokeDasharray="125"
                   strokeDashoffset={125 - (125 * exportProgress) / 100}
                 ></circle>
               </svg>
-              <span className="viewport-progress-percentage">{exportProgress}%</span>
+              <span className="viewport-progress-percentage">
+                {exportProgress}%
+              </span>
             </div>
             <h3 className="export-title">Exporting Video Clip...</h3>
-            <p className="export-desc">Encoding trimmed segment. Please keep this tab active.</p>
+            <p className="export-desc">
+              Encoding trimmed segment. Please keep this tab active.
+            </p>
             <button className="btn btn-danger" onClick={handleCancelExport}>
               <X size={16} />
               <span>Cancel Export</span>
@@ -550,11 +571,14 @@ export default function VideoPlayer({
           <div className="export-modal watermark-modal glassmorphism animate-fade-in">
             <div className="watermark-modal-header">
               <h3>Cấu hình xuất video</h3>
-              <button className="btn btn-icon btn-secondary btn-sm" onClick={() => setShowExportModal(false)}>
+              <button
+                className="btn btn-icon btn-secondary btn-sm"
+                onClick={() => setShowExportModal(false)}
+              >
                 <X size={14} />
               </button>
             </div>
-            
+
             <div className="watermark-modal-body">
               <div className="form-checkbox-group">
                 <input
@@ -564,7 +588,10 @@ export default function VideoPlayer({
                   onChange={(e) => setAddWatermark(e.target.checked)}
                   className="watermark-checkbox"
                 />
-                <label htmlFor="add-watermark-cb" className="watermark-label-checkbox">
+                <label
+                  htmlFor="add-watermark-cb"
+                  className="watermark-label-checkbox"
+                >
                   Chèn Watermark vào video (Re-encode)
                 </label>
               </div>
@@ -624,7 +651,9 @@ export default function VideoPlayer({
                           min="12"
                           max="120"
                           value={watermarkSize}
-                          onChange={(e) => setWatermarkSize(Number(e.target.value))}
+                          onChange={(e) =>
+                            setWatermarkSize(Number(e.target.value))
+                          }
                           className="custom-slider"
                         />
                       </div>
@@ -639,14 +668,22 @@ export default function VideoPlayer({
                           onChange={(e) => {
                             if (e.target.files && e.target.files[0]) {
                               const file = e.target.files[0];
-                              setWatermarkLogoUrl(URL.createObjectURL(file));
+                              setWatermarkLogoUrl((prev) => {
+                                if (prev) URL.revokeObjectURL(prev);
+                                return URL.createObjectURL(file);
+                              });
                             }
                           }}
                           className="watermark-file-input"
                         />
                         {watermarkLogoUrl && (
                           <div className="logo-preview-box">
-                            <img src={watermarkLogoUrl} alt="Logo" className="logo-preview-img" style={{ maxHeight: "60px" }} />
+                            <img
+                              src={watermarkLogoUrl}
+                              alt="Logo"
+                              className="logo-preview-img"
+                              style={{ maxHeight: "60px" }}
+                            />
                           </div>
                         )}
                       </div>
@@ -657,7 +694,9 @@ export default function VideoPlayer({
                           min="5"
                           max="50"
                           value={watermarkScale}
-                          onChange={(e) => setWatermarkScale(Number(e.target.value))}
+                          onChange={(e) =>
+                            setWatermarkScale(Number(e.target.value))
+                          }
                           className="custom-slider"
                         />
                       </div>
@@ -665,14 +704,18 @@ export default function VideoPlayer({
                   )}
 
                   <div className="form-group">
-                    <label>Độ mờ ({Math.round(watermarkOpacity * 100)}%):</label>
+                    <label>
+                      Độ mờ ({Math.round(watermarkOpacity * 100)}%):
+                    </label>
                     <input
                       type="range"
                       min="0.1"
                       max="1.0"
                       step="0.05"
                       value={watermarkOpacity}
-                      onChange={(e) => setWatermarkOpacity(Number(e.target.value))}
+                      onChange={(e) =>
+                        setWatermarkOpacity(Number(e.target.value))
+                      }
                       className="custom-slider"
                     />
                   </div>
@@ -694,12 +737,21 @@ export default function VideoPlayer({
                 </div>
               )}
             </div>
-            
+
             <div className="watermark-modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowExportModal(false)}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowExportModal(false)}
+              >
                 Huỷ
               </button>
-              <button className="btn btn-primary" onClick={handleExportVideo}>
+              <button
+                className="btn btn-primary"
+                disabled={
+                  addWatermark && watermarkType === "logo" && !watermarkLogoUrl
+                }
+                onClick={handleExportVideo}
+              >
                 <Download size={16} />
                 <span>Bắt đầu Export & Tải</span>
               </button>
@@ -710,26 +762,31 @@ export default function VideoPlayer({
 
       {/* Custom YouTube-style Control Bar Panel */}
       <div className="player-controls-card glassmorphism">
-        
         {/* Trim controls panel */}
         {isEditing && (
           <div className="trim-panel animate-fade-in">
             <div className="trim-header-row">
               <span className="trim-title-badge">Trim Settings</span>
-              <span className="trim-duration-badge">Clip Duration: {formatTime(endTime - startTime)}</span>
+              <span className="trim-duration-badge">
+                Clip Duration: {formatTime(endTime - startTime)}
+              </span>
             </div>
             <div className="trim-double-slider-wrapper">
               <div className="trim-double-slider-labels">
-                <span className="trim-time-badge">Start Time: {formatTime(startTime)}</span>
-                <span className="trim-time-badge font-accent">End Time: {formatTime(endTime)}</span>
+                <span className="trim-time-badge">
+                  Start Time: {formatTime(startTime)}
+                </span>
+                <span className="trim-time-badge font-accent">
+                  End Time: {formatTime(endTime)}
+                </span>
               </div>
               <div className="double-slider-container">
                 <div className="double-slider-track"></div>
-                <div 
+                <div
                   className="double-slider-range"
                   style={{
                     left: `${(startTime / (duration || 1)) * 100}%`,
-                    width: `${((endTime - startTime) / (duration || 1)) * 100}%`
+                    width: `${((endTime - startTime) / (duration || 1)) * 100}%`,
                   }}
                 ></div>
                 <input
@@ -769,7 +826,7 @@ export default function VideoPlayer({
               </div>
             </div>
             <div className="trim-actions-row">
-              <button 
+              <button
                 className="btn btn-secondary btn-sm"
                 onClick={() => {
                   videoRef.current.currentTime = startTime;
@@ -779,8 +836,8 @@ export default function VideoPlayer({
               >
                 Preview Trim
               </button>
-              <button 
-                className="btn btn-primary btn-sm" 
+              <button
+                className="btn btn-primary btn-sm"
                 onClick={() => setShowExportModal(true)}
               >
                 <Download size={14} />
@@ -814,7 +871,7 @@ export default function VideoPlayer({
                 className="trim-highlight-bar"
                 style={{
                   left: `${(startTime / (duration || 1)) * 100}%`,
-                  width: `${((endTime - startTime) / (duration || 1)) * 100}%`
+                  width: `${((endTime - startTime) / (duration || 1)) * 100}%`,
                 }}
               />
             )}
@@ -945,21 +1002,21 @@ export default function VideoPlayer({
 
             {/* Scissors trim button */}
             {allowTrim && (
-            <button
-              className={`ctrl-btn ${isEditing ? "active-speed" : ""}`}
-              onClick={() => {
-                if (isEditing) {
-                  setIsEditing(false);
-                } else {
-                  setIsEditing(true);
-                  setStartTime(0);
-                  setEndTime(duration || 10);
-                }
-              }}
-              title="Edit / Trim Video"
-            >
-              <Scissors size={20} />
-            </button>
+              <button
+                className={`ctrl-btn ${isEditing ? "active-speed" : ""}`}
+                onClick={() => {
+                  if (isEditing) {
+                    setIsEditing(false);
+                  } else {
+                    setIsEditing(true);
+                    setStartTime(0);
+                    setEndTime(duration || 10);
+                  }
+                }}
+                title="Edit / Trim Video"
+              >
+                <Scissors size={20} />
+              </button>
             )}
 
             {/* Fullscreen control */}
@@ -973,7 +1030,6 @@ export default function VideoPlayer({
           </div>
         </div>
       </div>
-
     </div>
   );
 }

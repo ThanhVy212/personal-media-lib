@@ -16,7 +16,11 @@ import {
   Sliders,
 } from "lucide-react";
 import "./App.css";
-import { parseMediaLink, isBlobMediaUrl, generateVideoThumbnail } from "./utils/mediaUrl.js";
+import {
+  parseMediaLink,
+  isBlobMediaUrl,
+  generateVideoThumbnail,
+} from "./utils/mediaUrl.js";
 
 const GITHUB_REPO_URL = "https://github.com/ThanhVy212/personal-media-lib";
 
@@ -79,17 +83,17 @@ export default function App() {
   const naturalSort = (a, b) => {
     const nameA = a.name.toLowerCase();
     const nameB = b.name.toLowerCase();
-    
+
     // Split into parts: numbers and non-numbers
     const splitA = nameA.split(/(\d+)/g);
     const splitB = nameB.split(/(\d+)/g);
-    
+
     for (let i = 0; i < Math.min(splitA.length, splitB.length); i++) {
       const partA = splitA[i];
       const partB = splitB[i];
-      
+
       // If both parts are numbers, compare numerically
-      if (!isNaN(partA) && !isNaN(partB) && partA !== '' && partB !== '') {
+      if (!isNaN(partA) && !isNaN(partB) && partA !== "" && partB !== "") {
         const numA = parseInt(partA, 10);
         const numB = parseInt(partB, 10);
         if (numA !== numB) {
@@ -101,7 +105,7 @@ export default function App() {
         if (partA > partB) return 1;
       }
     }
-    
+
     // If all parts are equal, shorter string comes first
     return splitA.length - splitB.length;
   };
@@ -128,7 +132,7 @@ export default function App() {
 
     setMediaList((prevList) => {
       const updated = [...prevList, ...items];
-      
+
       // If we don't have any active selection, or if we were on "upload" page and just started,
       // let's keep activeIndex as is, or select first uploading item if activeIndex is null.
       if (activeIndex === null && updated.length > 0) {
@@ -146,27 +150,32 @@ export default function App() {
     items.forEach((item) => {
       const sizeInMB = item.size / (1024 * 1024);
       // Duration based on size and speed. Make it at least 1.5 seconds, max 6 seconds
-      const durationMs = Math.max(1500, Math.min(6000, (sizeInMB / item.speed) * 1000));
+      const durationMs = Math.max(
+        1500,
+        Math.min(6000, (sizeInMB / item.speed) * 1000),
+      );
       const intervalTime = 150;
       const totalSteps = durationMs / intervalTime;
       const baseStep = 100 / totalSteps;
-      
+
       let currentProgress = 0;
       const interval = setInterval(() => {
         // Add random jitter to step sizes
         const jitter = Math.random() * 8 - 3; // skewed positive
         currentProgress = Math.min(100, currentProgress + baseStep + jitter);
-        
+
         if (currentProgress >= 100) {
           currentProgress = 100;
           clearInterval(interval);
-          
+
           setMediaList((prevList) =>
             prevList.map((m) =>
-              m.id === item.id ? { ...m, progress: 100, status: "completed" } : m
-            )
+              m.id === item.id
+                ? { ...m, progress: 100, status: "completed" }
+                : m,
+            ),
           );
-          
+
           showToast(`Uploaded "${item.name}"`, "success");
 
           // Extract thumbnail frame for local videos once upload completes
@@ -175,8 +184,8 @@ export default function App() {
               .then((thumbUrl) => {
                 setMediaList((prevList) =>
                   prevList.map((m) =>
-                    m.id === item.id ? { ...m, thumbnailUrl: thumbUrl } : m
-                  )
+                    m.id === item.id ? { ...m, thumbnailUrl: thumbUrl } : m,
+                  ),
                 );
               })
               .catch((err) => {
@@ -186,8 +195,8 @@ export default function App() {
         } else {
           setMediaList((prevList) =>
             prevList.map((m) =>
-              m.id === item.id ? { ...m, progress: currentProgress } : m
-            )
+              m.id === item.id ? { ...m, progress: currentProgress } : m,
+            ),
           );
         }
       }, intervalTime);
@@ -226,7 +235,9 @@ export default function App() {
     });
 
     showToast(
-      parsed.type === "youtube" ? "Đã thêm video YouTube" : "Đã thêm link video",
+      parsed.type === "youtube"
+        ? "Đã thêm video YouTube"
+        : "Đã thêm link video",
       "success",
     );
 
@@ -236,8 +247,8 @@ export default function App() {
         .then((thumbUrl) => {
           setMediaList((prevList) =>
             prevList.map((m) =>
-              m.id === item.id ? { ...m, thumbnailUrl: thumbUrl } : m
-            )
+              m.id === item.id ? { ...m, thumbnailUrl: thumbUrl } : m,
+            ),
           );
         })
         .catch((e) => console.warn("Failed link thumbnail extraction:", e));
@@ -283,7 +294,7 @@ export default function App() {
 
   const handleDownloadAll = async () => {
     const downloadableFiles = mediaList.filter(
-      (item) => item.file && item.status === "completed"
+      (item) => item.file && item.status === "completed",
     );
 
     if (downloadableFiles.length === 0) {
@@ -303,19 +314,19 @@ export default function App() {
         for (let i = 0; i < downloadableFiles.length; i++) {
           const item = downloadableFiles[i];
           // Get file extension from original name
-          const ext = item.name.includes('.') 
-            ? item.name.substring(item.name.lastIndexOf('.')) 
-            : '';
+          const ext = item.name.includes(".")
+            ? item.name.substring(item.name.lastIndexOf("."))
+            : "";
           // Create sequential filename
           const newName = `${i + 1}${ext}`;
-          
+
           const fileHandle = await dirHandle.getFileHandle(newName, {
             create: true,
           });
           const writable = await fileHandle.createWritable();
           await writable.write(item.file);
           await writable.close();
-          
+
           // Add delay between downloads to ensure sequential completion
           if (i < downloadableFiles.length - 1) {
             await new Promise((resolve) => setTimeout(resolve, 300));
@@ -341,12 +352,12 @@ export default function App() {
       for (let i = 0; i < downloadableFiles.length; i++) {
         const item = downloadableFiles[i];
         // Get file extension from original name
-        const ext = item.name.includes('.') 
-          ? item.name.substring(item.name.lastIndexOf('.')) 
-          : '';
+        const ext = item.name.includes(".")
+          ? item.name.substring(item.name.lastIndexOf("."))
+          : "";
         // Create sequential filename
         const newName = `${i + 1}${ext}`;
-        
+
         const link = document.createElement("a");
         link.href = item.url;
         link.download = newName;
@@ -392,7 +403,7 @@ export default function App() {
       const newList = [...prevList];
       const [movedItem] = newList.splice(fromIndex, 1);
       newList.splice(toIndex, 0, movedItem);
-      
+
       // Update activeIndex if needed
       if (activeIndex === fromIndex) {
         setActiveIndex(toIndex);
@@ -401,22 +412,30 @@ export default function App() {
       } else if (fromIndex > activeIndex && toIndex <= activeIndex) {
         setActiveIndex(activeIndex + 1);
       }
-      
+
       return newList;
     });
   };
 
   const handleSortAZ = () => {
+    const activeId =
+      typeof activeIndex === "number" ? mediaList[activeIndex]?.id : null;
     setMediaList((prevList) => {
       const sorted = [...prevList];
       sorted.sort(naturalSort);
+      if (activeId) {
+        const nextIndex = sorted.findIndex((m) => m.id === activeId);
+        if (nextIndex !== -1) setActiveIndex(nextIndex);
+      }
       return sorted;
     });
     showToast("Đã sắp xếp file theo tên (A-Z)", "success");
   };
 
   const activeMedia =
-    activeIndex !== null && activeIndex !== "upload" && activeIndex !== "compare"
+    activeIndex !== null &&
+    activeIndex !== "upload" &&
+    activeIndex !== "compare"
       ? mediaList[activeIndex]
       : null;
 
@@ -446,8 +465,14 @@ export default function App() {
           )}
           <button
             className={`btn btn-secondary ${activeIndex === "compare" ? "btn-active-tab" : ""}`}
-            onClick={() => setActiveIndex(activeIndex === "compare" ? "upload" : "compare")}
-            disabled={mediaList.filter(m => m.type === "image" && m.status === "completed").length < 2}
+            onClick={() =>
+              setActiveIndex(activeIndex === "compare" ? "upload" : "compare")
+            }
+            disabled={
+              mediaList.filter(
+                (m) => m.type === "image" && m.status === "completed",
+              ).length < 2
+            }
             title="So sánh 2 ảnh"
           >
             <Sliders size={16} />
@@ -534,22 +559,37 @@ export default function App() {
                 <div className="uploading-viewport-card glassmorphism animate-pulse-border">
                   <div className="viewport-spinner-container">
                     <svg className="viewport-spinner" viewBox="0 0 50 50">
-                      <circle className="path-bg" cx="25" cy="25" r="20" fill="none" strokeWidth="4"></circle>
-                      <circle 
-                        className="path-fg" 
-                        cx="25" 
-                        cy="25" 
-                        r="20" 
-                        fill="none" 
+                      <circle
+                        className="path-bg"
+                        cx="25"
+                        cy="25"
+                        r="20"
+                        fill="none"
+                        strokeWidth="4"
+                      ></circle>
+                      <circle
+                        className="path-fg"
+                        cx="25"
+                        cy="25"
+                        r="20"
+                        fill="none"
                         strokeWidth="4"
                         strokeDasharray="125"
-                        strokeDashoffset={125 - (125 * activeMedia.progress) / 100}
+                        strokeDashoffset={
+                          125 - (125 * activeMedia.progress) / 100
+                        }
                       ></circle>
                     </svg>
-                    <span className="viewport-progress-percentage">{Math.round(activeMedia.progress)}%</span>
+                    <span className="viewport-progress-percentage">
+                      {Math.round(activeMedia.progress)}%
+                    </span>
                   </div>
-                  <h3 className="uploading-title">Uploading "{activeMedia.name}"</h3>
-                  <p className="uploading-desc">Processing and optimizing media in browser...</p>
+                  <h3 className="uploading-title">
+                    Uploading "{activeMedia.name}"
+                  </h3>
+                  <p className="uploading-desc">
+                    Processing and optimizing media in browser...
+                  </p>
                   <div className="viewport-upload-meta">
                     <span>Size: {formatSize(activeMedia.size)}</span>
                     <span>Speed: {activeMedia.speed} MB/s</span>

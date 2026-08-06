@@ -3,12 +3,17 @@ import { X, Columns, Sliders, ArrowLeftRight } from "lucide-react";
 
 export default function ImageComparer({ mediaList, onClose }) {
   const images = useMemo(
-    () => mediaList.filter((item) => item.type === "image" && item.status === "completed"),
-    [mediaList]
+    () =>
+      mediaList.filter(
+        (item) => item.type === "image" && item.status === "completed",
+      ),
+    [mediaList],
   );
 
   const [imageAId, setImageAId] = useState(images[0]?.id || "");
-  const [imageBId, setImageBId] = useState(images[1]?.id || images[0]?.id || "");
+  const [imageBId, setImageBId] = useState(
+    images[1]?.id || images[0]?.id || "",
+  );
   const [mode, setMode] = useState("slider"); // 'slider' or 'side-by-side'
   const [sliderPos, setSliderPos] = useState(50);
 
@@ -32,7 +37,10 @@ export default function ImageComparer({ mediaList, onClose }) {
       <div className="comparer-empty-state glassmorphism animate-fade-in">
         <Sliders size={48} className="logo-icon animate-pulse" />
         <h3>Cần ít nhất 2 ảnh để so sánh</h3>
-        <p>Vui lòng upload thêm ảnh vào thư viện của bạn trước khi sử dụng tính năng này.</p>
+        <p>
+          Vui lòng upload thêm ảnh vào thư viện của bạn trước khi sử dụng tính
+          năng này.
+        </p>
         <button className="btn btn-secondary mt-4" onClick={onClose}>
           <X size={16} /> Quay lại
         </button>
@@ -46,8 +54,11 @@ export default function ImageComparer({ mediaList, onClose }) {
       <div className="comparer-header glassmorphism">
         <div className="comparer-selectors">
           <div className="selector-group">
-            <span className="selector-label">Ảnh A:</span>
+            <label className="selector-label" htmlFor="compare-image-a">
+              Ảnh A:
+            </label>
             <select
+              id="compare-image-a"
               value={imageAId}
               onChange={(e) => setImageAId(e.target.value)}
               className="comparer-select"
@@ -73,8 +84,12 @@ export default function ImageComparer({ mediaList, onClose }) {
           </button>
 
           <div className="selector-group">
-            <span className="selector-label">Ảnh B:</span>
+            +{" "}
+            <label className="selector-label" htmlFor="compare-image-b">
+              Ảnh B:
+            </label>
             <select
+              id="compare-image-b"
               value={imageBId}
               onChange={(e) => setImageBId(e.target.value)}
               className="comparer-select"
@@ -104,7 +119,11 @@ export default function ImageComparer({ mediaList, onClose }) {
             <span>Song song</span>
           </button>
           <div className="controls-separator"></div>
-          <button className="btn btn-icon btn-secondary close-btn" onClick={onClose} title="Đóng so sánh">
+          <button
+            className="btn btn-icon btn-secondary close-btn"
+            onClick={onClose}
+            title="Đóng so sánh"
+          >
             <X size={18} />
           </button>
         </div>
@@ -117,14 +136,26 @@ export default function ImageComparer({ mediaList, onClose }) {
             <div className="compare-pane">
               <div className="pane-tag tag-a">Ảnh A</div>
               <div className="compare-image-wrapper">
-                {imageA && <img src={imageA.url} alt={imageA.name} className="compare-img-fit" />}
+                {imageA && (
+                  <img
+                    src={imageA.url}
+                    alt={imageA.name}
+                    className="compare-img-fit"
+                  />
+                )}
               </div>
               <span className="pane-name">{imageA?.name}</span>
             </div>
             <div className="compare-pane">
               <div className="pane-tag tag-b">Ảnh B</div>
               <div className="compare-image-wrapper">
-                {imageB && <img src={imageB.url} alt={imageB.name} className="compare-img-fit" />}
+                {imageB && (
+                  <img
+                    src={imageB.url}
+                    alt={imageB.name}
+                    className="compare-img-fit"
+                  />
+                )}
               </div>
               <span className="pane-name">{imageB?.name}</span>
             </div>
@@ -160,7 +191,10 @@ export default function ImageComparer({ mediaList, onClose }) {
               )}
 
               {/* Slider Line Divider & Drag Handle */}
-              <div className="slider-divider-line" style={{ left: `${sliderPos}%` }}>
+              <div
+                className="slider-divider-line"
+                style={{ left: `${sliderPos}%` }}
+              >
                 <div className="slider-divider-handle">
                   <ArrowLeftRight size={16} className="text-white" />
                 </div>
@@ -169,6 +203,7 @@ export default function ImageComparer({ mediaList, onClose }) {
               {/* Transparent Slider Input overlay */}
               <input
                 type="range"
+                aria-label="Vị trí so sánh"
                 min="0"
                 max="100"
                 value={sliderPos}

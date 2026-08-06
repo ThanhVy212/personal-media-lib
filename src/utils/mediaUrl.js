@@ -47,7 +47,8 @@ export function parseMediaLink(raw) {
   }
 
   if (DIRECT_VIDEO_EXT.test(normalized)) {
-    const pathPart = normalized.split("/").pop()?.split("?")[0] || "Remote video";
+    const pathPart =
+      normalized.split("/").pop()?.split("?")[0] || "Remote video";
     return {
       type: "video",
       url: normalized,
@@ -64,7 +65,7 @@ export function isBlobMediaUrl(url) {
 
 /**
  * Extracts a thumbnail image from a video URL/Blob URL.
- * @param {string} videoUrl 
+ * @param {string} videoUrl
  * @returns {Promise<string>} Base64 Data URL of the video thumbnail
  */
 export function generateVideoThumbnail(videoUrl) {
@@ -84,8 +85,11 @@ export function generateVideoThumbnail(videoUrl) {
     }, 10000);
 
     video.onloadedmetadata = () => {
-      // Seek to 1 second or 10% of duration, whichever is smaller, to avoid black screen at start
-      const seekTime = Math.min(1.0, video.duration / 2);
+      // Seek to 1 second or half the duration, whichever is smaller, to avoid a black frame at the start
+      const duration = video.duration;
+      const seekTime = Number.isFinite(duration)
+        ? Math.min(1.0, duration / 2)
+        : 0.1;
       video.currentTime = seekTime;
     };
 
@@ -94,7 +98,9 @@ export function generateVideoThumbnail(videoUrl) {
       try {
         const canvas = document.createElement("canvas");
         const width = 320;
-        const height = video.videoWidth ? (video.videoHeight / video.videoWidth) * width : 180;
+        const height = video.videoWidth
+          ? (video.videoHeight / video.videoWidth) * width
+          : 180;
         canvas.width = width;
         canvas.height = height;
 
@@ -102,11 +108,11 @@ export function generateVideoThumbnail(videoUrl) {
         ctx.drawImage(video, 0, 0, width, height);
 
         const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
-        
+
         // Clean up
         video.src = "";
         video.load();
-        
+
         resolve(dataUrl);
       } catch (err) {
         reject(err);
@@ -119,4 +125,3 @@ export function generateVideoThumbnail(videoUrl) {
     };
   });
 }
-

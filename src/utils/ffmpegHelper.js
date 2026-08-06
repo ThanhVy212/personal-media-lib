@@ -99,7 +99,13 @@ class FFmpegHelper {
     }
   }
 
-  async trimAndWatermarkVideo(videoFile, startTime, endTime, watermarkBlob, onProgress) {
+  async trimAndWatermarkVideo(
+    videoFile,
+    startTime,
+    endTime,
+    watermarkBlob,
+    onProgress,
+  ) {
     if (!this.loaded) {
       await this.load(onProgress);
     }
@@ -123,17 +129,20 @@ class FFmpegHelper {
 
     try {
       await this.ffmpeg.writeFile(inputName, await fetchFile(videoFile));
-      await this.ffmpeg.writeFile(watermarkName, await fetchFile(watermarkBlob));
+      await this.ffmpeg.writeFile(
+        watermarkName,
+        await fetchFile(watermarkBlob),
+      );
 
       if (onProgress) onProgress(60);
 
       const exitCode = await this.ffmpeg.exec([
         "-ss",
         startTime.toString(),
-        "-i",
-        inputName,
         "-t",
         duration.toString(),
+        "-i",
+        inputName,
         "-i",
         watermarkName,
         "-filter_complex",
@@ -176,4 +185,3 @@ class FFmpegHelper {
 }
 
 export const ffmpegHelper = new FFmpegHelper();
-
