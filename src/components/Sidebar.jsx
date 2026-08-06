@@ -9,6 +9,7 @@ import {
   Upload,
   Video,
   Music,
+  ArrowUpDown,
 } from "lucide-react";
 import { youtubeThumbnailUrl } from "../utils/mediaUrl.js";
 
@@ -22,6 +23,7 @@ export default function Sidebar({
   isOpen,
   onToggle,
   onReorder,
+  onSortAZ,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const fileInputRef = useRef(null);
@@ -129,20 +131,30 @@ export default function Sidebar({
         </div>
       </div>
 
-      <div className="search-box-container">
-        <Search className="search-icon" size={16} />
-        <input
-          type="text"
-          placeholder="Search files..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="search-input"
-        />
-        {searchQuery && (
-          <button className="search-clear" onClick={() => setSearchQuery("")}>
-            <X size={14} />
-          </button>
-        )}
+      <div className="search-sort-row">
+        <div className="search-box-container">
+          <Search className="search-icon" size={16} />
+          <input
+            type="text"
+            placeholder="Search files..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+          />
+          {searchQuery && (
+            <button className="search-clear" onClick={() => setSearchQuery("")}>
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        <button
+          className="btn btn-secondary sort-az-btn"
+          onClick={onSortAZ}
+          title="Sắp xếp danh sách theo tên từ A->Z"
+          disabled={mediaList.length < 2}
+        >
+          <ArrowUpDown size={16} />
+        </button>
       </div>
 
       <div className="media-list-container">

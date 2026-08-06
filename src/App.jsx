@@ -128,8 +128,6 @@ export default function App() {
 
     setMediaList((prevList) => {
       const updated = [...prevList, ...items];
-      // Sort the list using natural sort
-      updated.sort(naturalSort);
       
       // If we don't have any active selection, or if we were on "upload" page and just started,
       // let's keep activeIndex as is, or select first uploading item if activeIndex is null.
@@ -221,10 +219,8 @@ export default function App() {
 
     setMediaList((prev) => {
       const updated = [...prev, item];
-      // Sort the list using natural sort
-      updated.sort(naturalSort);
-      // Find the new index of the added item
-      const newIndex = updated.findIndex((m) => m.id === item.id);
+      // Set the active index to the newly appended item
+      const newIndex = updated.length - 1;
       setActiveIndex(newIndex);
       return updated;
     });
@@ -410,6 +406,15 @@ export default function App() {
     });
   };
 
+  const handleSortAZ = () => {
+    setMediaList((prevList) => {
+      const sorted = [...prevList];
+      sorted.sort(naturalSort);
+      return sorted;
+    });
+    showToast("Đã sắp xếp file theo tên (A-Z)", "success");
+  };
+
   const activeMedia =
     activeIndex !== null && activeIndex !== "upload" && activeIndex !== "compare"
       ? mediaList[activeIndex]
@@ -508,6 +513,7 @@ export default function App() {
           isOpen={isSidebarOpen}
           onToggle={toggleSidebar}
           onReorder={handleReorder}
+          onSortAZ={handleSortAZ}
         />
 
         <main className="app-viewport">
