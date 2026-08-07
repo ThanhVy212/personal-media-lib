@@ -31,6 +31,8 @@ export default function VideoPlayer({
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+  const [showResumeDialog, setShowResumeDialog] = useState(false);
+  const [savedTime, setSavedTime] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
@@ -156,6 +158,7 @@ export default function VideoPlayer({
   const videoRef = useRef(null);
   const timelineRef = useRef(null);
   const controlsTimeoutRef = useRef(null);
+  const lastSavedTimeRef = useRef(0);
 
   const speedOptions = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
@@ -212,7 +215,23 @@ export default function VideoPlayer({
     setExportProgress(0);
     setShowExportModal(false);
     setAddWatermark(false);
-  }, [src]);
+    lastSavedTimeRef.current = 0;
+
+    const saved = localStorage.getItem(`video-progress:${name}`);
+    if (saved) {
+      const time = parseFloat(saved);
+      if (time > 2) {
+        setSavedTime(time);
+        setShowResumeDialog(true);
+      } else {
+        setShowResumeDialog(false);
+        setSavedTime(0);
+      }
+    } else {
+      setShowResumeDialog(false);
+      setSavedTime(0);
+    }
+  }, [src, name]);
 
   // Sync volume with browser audio level
   useEffect(() => {
@@ -318,6 +337,17 @@ export default function VideoPlayer({
     if (videoRef.current && !isExporting) {
       const curr = videoRef.current.currentTime;
       setCurrentTime(curr);
+
+      const rounded = Math.floor(curr);
+      if (rounded !== lastSavedTimeRef.current) {
+        lastSavedTimeRef.current = rounded;
+        if (curr > 2 && duration > 0 && curr < duration - 2) {
+          localStorage.setItem(`video-progress:${name}`, curr.toString());
+        } else if (duration > 0 && (curr >= duration - 2 || curr < 2)) {
+          localStorage.removeItem(`video-progress:${name}`);
+        }
+      }
+
       if (isEditing) {
         if (curr >= endTime) {
           videoRef.current.currentTime = startTime;
@@ -514,8 +544,63 @@ export default function VideoPlayer({
         onLoadedMetadata={handleLoadedMetadata}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
+        onEnded={() => {
+          localStorage.removeItem(`video-progress:${name}`);
+          setIsPlaying(false);
+        }}
         playsInline
       />
+
+      {/* Resume Dialog Overlay */}
+      {showResumeDialog && (
+        <div className="resume-dialog-overlay animate-fade-in">
+          <div className="resume-dialog-modal glassmorphism">
+            <div className="resume-dialog-header">
+              <h3>Tiếp tục xem?</h3>
+              <button
+                className="btn-close"
+                onClick={() => setShowResumeDialog(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="resume-dialog-body">
+              <p>
+                Bạn đã xem đến <strong>{formatTime(savedTime)}</strong>. Bạn có muốn xem tiếp từ vị trí này?
+              </p>
+            </div>
+            <div className="resume-dialog-footer">
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowResumeDialog(false);
+                  if (videoRef.current) {
+                    videoRef.current.currentTime = 0;
+                    localStorage.removeItem(`video-progress:${name}`);
+                    videoRef.current.play();
+                    setIsPlaying(true);
+                  }
+                }}
+              >
+                Xem lại từ đầu
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  setShowResumeDialog(false);
+                  if (videoRef.current) {
+                    videoRef.current.currentTime = savedTime;
+                    videoRef.current.play();
+                    setIsPlaying(true);
+                  }
+                }}
+              >
+                Xem tiếp
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Big Playback Indicator overlay (Brief flash when playing/pausing) */}
       {!isEditing && !isExporting && (
