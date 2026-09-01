@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Image, Video, FileText, Link2, Music } from 'lucide-react';
+import { Upload, Image, Video, FileText, Link2, Music, File } from 'lucide-react';
 
 export default function UploadZone({ onFilesSelected, onAddMediaLink, mediaList = [] }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -20,7 +20,18 @@ export default function UploadZone({ onFilesSelected, onAddMediaLink, mediaList 
     if (!files || files.length === 0) return;
     
     const mediaFiles = Array.from(files).filter(
-      (file) => file.type.startsWith('image/') || file.type.startsWith('video/') || file.type.startsWith('audio/')
+      (file) =>
+        file.type.startsWith('image/') ||
+        file.type.startsWith('video/') ||
+        file.type.startsWith('audio/') ||
+        file.type === 'application/pdf' ||
+        file.type === 'text/plain' ||
+        file.type === 'application/msword' ||
+        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        file.name.toLowerCase().endsWith('.doc') ||
+        file.name.toLowerCase().endsWith('.docx') ||
+        file.name.toLowerCase().endsWith('.txt') ||
+        file.name.toLowerCase().endsWith('.pdf')
     );
 
     if (mediaFiles.length > 0) {
@@ -73,7 +84,7 @@ export default function UploadZone({ onFilesSelected, onAddMediaLink, mediaList 
           ref={fileInputRef}
           onChange={handleFileChange}
           multiple 
-          accept="image/*,video/*,audio/*"
+          accept="image/*,video/*,audio/*,.pdf,.txt,.doc,.docx"
           className="hidden-input"
         />
         
@@ -99,6 +110,9 @@ export default function UploadZone({ onFilesSelected, onAddMediaLink, mediaList 
           </span>
           <span className="info-tag">
             <Music size={14} /> Audio (MP3, WAV)
+          </span>
+          <span className="info-tag">
+            <File size={14} /> Documents (PDF, DOC, TXT)
           </span>
         </div>
 

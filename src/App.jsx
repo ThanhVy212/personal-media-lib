@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 import UploadZone from "./components/UploadZone";
 import Sidebar from "./components/Sidebar";
 import ImageViewer from "./components/ImageViewer";
@@ -6,6 +8,7 @@ import VideoPlayer from "./components/VideoPlayer";
 import YouTubePlayer from "./components/YouTubePlayer";
 import ImageComparer from "./components/ImageComparer";
 import AudioPlayer from "./components/AudioPlayer";
+import DocumentViewer from "./components/DocumentViewer";
 import {
   Menu,
   FolderOpen,
@@ -113,16 +116,29 @@ export default function App() {
   const handleFilesSelected = (newFiles) => {
     const items = newFiles.map((file) => {
       const speed = parseFloat((Math.random() * 6 + 2).toFixed(1)); // MB/s (2 to 8)
+      const isDocument =
+        file.type === "application/pdf" ||
+        file.type === "text/plain" ||
+        file.type === "application/msword" ||
+        file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+        file.name.toLowerCase().endsWith(".doc") ||
+        file.name.toLowerCase().endsWith(".docx") ||
+        file.name.toLowerCase().endsWith(".txt") ||
+        file.name.toLowerCase().endsWith(".pdf");
+
       return {
         id: Math.random().toString(36).substring(2, 9) + Date.now(),
         file,
         name: file.name,
         url: URL.createObjectURL(file),
-        type: file.type.startsWith("video/")
-          ? "video"
-          : file.type.startsWith("audio/")
-            ? "audio"
-            : "image",
+        type: isDocument
+          ? "document"
+          : file.type.startsWith("video/")
+            ? "video"
+            : file.type.startsWith("audio/")
+              ? "audio"
+              : "image",
+        mimeType: file.type,
         size: file.size,
         status: "uploading",
         progress: 0,
@@ -302,76 +318,35 @@ export default function App() {
       return;
     }
 
-    // Check if File System Access API is supported
-    if ("showDirectoryPicker" in window) {
-      try {
-        const dirHandle = await window.showDirectoryPicker();
-        showToast(
-          `Saving ${downloadableFiles.length} file${downloadableFiles.length > 1 ? "s" : ""} to selected folder...`,
-          "info",
-        );
+    showToast(
+      `Zipping ${downloadableFiles.length} file${downloadableFiles.length > 1 ? "s" : ""}...`,
+      "info",
+    );
 
-        for (let i = 0; i < downloadableFiles.length; i++) {
-          const item = downloadableFiles[i];
-          // Get file extension from original name
-          const ext = item.name.includes(".")
-            ? item.name.substring(item.name.lastIndexOf("."))
-            : "";
-          // Create sequential filename
-          const newName = `${i + 1}${ext}`;
+    try {
+      const zip = new JSZip();
+      const folder = zip.folder("personal-lib");
 
-          const fileHandle = await dirHandle.getFileHandle(newName, {
-            create: true,
-          });
-          const writable = await fileHandle.createWritable();
-          await writable.write(item.file);
-          await writable.close();
-
-          // Add delay between downloads to ensure sequential completion
-          if (i < downloadableFiles.length - 1) {
-            await new Promise((resolve) => setTimeout(resolve, 300));
-          }
-        }
-
-        showToast(
-          `Saved ${downloadableFiles.length} file${downloadableFiles.length > 1 ? "s" : ""} to folder`,
-          "success",
-        );
-      } catch (err) {
-        if (err.name !== "AbortError") {
-          showToast("Error saving files: " + err.message, "info");
-        }
-      }
-    } else {
-      // Fallback to regular download for browsers without File System Access API
-      showToast(
-        `Downloading ${downloadableFiles.length} file${downloadableFiles.length > 1 ? "s" : ""}...`,
-        "info",
-      );
-
-      for (let i = 0; i < downloadableFiles.length; i++) {
-        const item = downloadableFiles[i];
-        // Get file extension from original name
-        const ext = item.name.includes(".")
-          ? item.name.substring(item.name.lastIndexOf("."))
-          : "";
-        // Create sequential filename
-        const newName = `${i + 1}${ext}`;
-
-        const link = document.createElement("a");
-        link.href = item.url;
-        link.download = newName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        // Add small delay between downloads to avoid browser blocking
-        await new Promise((resolve) => setTimeout(resolve, 200));
+      for (const item of downloadableFiles) {
+        const blob = await fetch(item.url).then((res) => res.blob());
+        folder.file(item.name, blob);
       }
 
+      const content = await zip.generateAsync({
+        type: "blob",
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 },
+      });
+
+      saveAs(content, "personal-lib.zip");
+
       showToast(
-        `Downloaded ${downloadableFiles.length} file${downloadableFiles.length > 1 ? "s" : ""}`,
+        `Downloaded ${downloadableFiles.length} file${downloadableFiles.length > 1 ? "s" : ""} as personal-lib.zip`,
         "success",
       );
+    } catch (err) {
+      console.error("Error creating zip:", err);
+      showToast("Error creating zip file: " + err.message, "info");
     }
   };
 
@@ -624,6 +599,19 @@ export default function App() {
               <AudioPlayer
                 src={activeMedia.url}
                 name={activeMedia.name}
+                onPrev={handlePrev}
+                onNext={handleNext}
+                hasPrev={activeIndex !== "upload" && activeIndex > 0}
+                hasNext={
+                  activeIndex !== "upload" && activeIndex < mediaList.length - 1
+                }
+              />
+            ) : activeMedia.type === "document" ? (
+              <DocumentViewer
+                src={activeMedia.url}
+                name={activeMedia.name}
+                file={activeMedia.file}
+                mimeType={activeMedia.mimeType}
                 onPrev={handlePrev}
                 onNext={handleNext}
                 hasPrev={activeIndex !== "upload" && activeIndex > 0}

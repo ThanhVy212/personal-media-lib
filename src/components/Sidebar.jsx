@@ -9,6 +9,8 @@ import {
   Upload,
   Video,
   Music,
+  FileText,
+  File,
   ArrowUpDown,
 } from "lucide-react";
 import { youtubeThumbnailUrl } from "../utils/mediaUrl.js";
@@ -69,7 +71,15 @@ export default function Sidebar({
         (file) =>
           file.type.startsWith("image/") ||
           file.type.startsWith("video/") ||
-          file.type.startsWith("audio/"),
+          file.type.startsWith("audio/") ||
+          file.type === "application/pdf" ||
+          file.type === "text/plain" ||
+          file.type === "application/msword" ||
+          file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+          file.name.toLowerCase().endsWith(".doc") ||
+          file.name.toLowerCase().endsWith(".docx") ||
+          file.name.toLowerCase().endsWith(".txt") ||
+          file.name.toLowerCase().endsWith(".pdf"),
       );
       if (mediaFiles.length > 0) {
         onAddFiles(mediaFiles);
@@ -89,7 +99,7 @@ export default function Sidebar({
         ref={fileInputRef}
         onChange={handleFileChange}
         multiple
-        accept="image/*,video/*,audio/*"
+        accept="image/*,video/*,audio/*,.pdf,.txt,.doc,.docx"
         className="hidden-input"
       />
 
@@ -230,6 +240,13 @@ export default function Sidebar({
                       </div>
                       <Music className="video-overlay-icon" size={16} />
                     </div>
+                  ) : item.type === "document" ? (
+                    <div className="video-thumbnail-container document-thumb">
+                      <div className="sidebar-document-placeholder">
+                        <FileText className="document-placeholder-icon" size={20} />
+                      </div>
+                      <File className="video-overlay-icon" size={16} />
+                    </div>
                   ) : (
                     <div className="video-thumbnail-container">
                       {item.thumbnailUrl ? (
@@ -268,7 +285,9 @@ export default function Sidebar({
                           ? "YouTube"
                           : item.type === "audio"
                             ? "Audio"
-                            : "Video"}
+                            : item.type === "document"
+                              ? "Document"
+                              : "Video"}
                       {item.size > 0 ? ` • ${formatSize(item.size)}` : item.isRemote ? " • Link" : ""}
                     </span>
                   )}
