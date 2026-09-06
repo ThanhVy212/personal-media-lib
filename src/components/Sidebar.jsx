@@ -12,6 +12,7 @@ import {
   FileText,
   File,
   ArrowUpDown,
+  ImageIcon,
 } from "lucide-react";
 import { youtubeThumbnailUrl } from "../utils/mediaUrl.js";
 
@@ -26,6 +27,8 @@ export default function Sidebar({
   onToggle,
   onReorder,
   onSortAZ,
+  onSortSimilar,
+  isSortingSimilar,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const fileInputRef = useRef(null);
@@ -157,6 +160,14 @@ export default function Sidebar({
             </button>
           )}
         </div>
+        <button
+          className="btn btn-secondary sort-az-btn"
+          onClick={onSortSimilar}
+          title="Sắp xếp ảnh trùng nhau gần nhau"
+          disabled={mediaList.length < 2 || isSortingSimilar}
+        >
+          <ImageIcon size={16} />
+        </button>
         <button
           className="btn btn-secondary sort-az-btn"
           onClick={onSortAZ}

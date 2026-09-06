@@ -986,6 +986,9 @@
    ========================================== */
 .sidebar {
   width: 320px;
+  min-width: 280px;
+  max-width: 360px;
+  flex-shrink: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -995,6 +998,7 @@
     width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 100;
   overflow: hidden;
+  resize: horizontal;
 }
 
 .sidebar.closed {

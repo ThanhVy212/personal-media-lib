@@ -24,6 +24,10 @@ import {
   isBlobMediaUrl,
   generateVideoThumbnail,
 } from "./utils/mediaUrl.js";
+import {
+  computeAllHashes,
+  groupSimilarImages,
+} from "./utils/imageSimilarity.js";
 
 const GITHUB_REPO_URL = "https://github.com/ThanhVy212/personal-media-lib";
 
@@ -41,6 +45,7 @@ export default function App() {
   );
   const [toast, setToast] = useState(null);
   const toastTimeoutRef = useRef(null);
+  const [isSortingSimilar, setIsSortingSimilar] = useState(false);
 
   const mediaListRef = useRef(mediaList);
   useEffect(() => {
@@ -407,6 +412,43 @@ export default function App() {
     showToast("Đã sắp xếp file theo tên (A-Z)", "success");
   };
 
+  const handleSortSimilar = async () => {
+    if (isSortingSimilar) return;
+    const imageCount = mediaList.filter(
+      (m) => m.type === "image" && m.status === "completed",
+    ).length;
+    if (imageCount < 2) {
+      showToast("Cần ít nhất 2 ảnh đã upload để sắp xếp", "info");
+      return;
+    }
+
+    setIsSortingSimilar(true);
+    showToast("Đang phân tích ảnh...", "info");
+
+    try {
+      const activeId =
+        typeof activeIndex === "number" ? mediaList[activeIndex]?.id : null;
+      const hashes = await computeAllHashes(mediaList, (done, total) => {
+        showToast(`Đang phân tích ảnh ${done}/${total}...`, "info");
+      });
+
+      const sorted = groupSimilarImages(mediaList, hashes, 5);
+      setMediaList(sorted);
+
+      if (activeId) {
+        const nextIndex = sorted.findIndex((m) => m.id === activeId);
+        if (nextIndex !== -1) setActiveIndex(nextIndex);
+      }
+
+      showToast("Đã sắp xếp ảnh trùng nhau gần nhau!", "success");
+    } catch (err) {
+      console.error("Error sorting by similarity:", err);
+      showToast("Lỗi khi sắp xếp ảnh: " + err.message, "info");
+    } finally {
+      setIsSortingSimilar(false);
+    }
+  };
+
   const activeMedia =
     activeIndex !== null &&
     activeIndex !== "upload" &&
@@ -514,6 +556,8 @@ export default function App() {
           onToggle={toggleSidebar}
           onReorder={handleReorder}
           onSortAZ={handleSortAZ}
+          onSortSimilar={handleSortSimilar}
+          isSortingSimilar={isSortingSimilar}
         />
 
         <main className="app-viewport">
