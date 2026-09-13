@@ -1132,7 +1132,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px;
+  padding: 10px 10px 10px 30px;
   border-radius: 10px;
   cursor: pointer;
   transition: var(--transition-smooth);
@@ -1204,6 +1204,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  padding-right: 60px;
 }
 
 .media-name {
@@ -2329,6 +2330,315 @@
 .btn-active-translate {
   background: rgba(124, 58, 237, 0.35);
   border-color: var(--primary);
+}
+
+/* ==========================================
+   Favorites / Bookmark
+   ========================================== */
+.btn-favorite {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s, background 0.2s, transform 0.2s;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  position: absolute;
+  right: 36px;
+  border-radius: 6px;
+}
+
+.media-item:hover .btn-favorite,
+.media-item.selected .btn-favorite {
+  opacity: 1;
+}
+
+.btn-favorite:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  transform: scale(1.15);
+}
+
+.btn-favorite.active {
+  color: #ef4444;
+  opacity: 1;
+}
+
+.btn-favorite.active:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+.btn-fav-active {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+}
+
+/* ==========================================
+   Sidebar filter row
+   ========================================== */
+.sidebar-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+}
+
+.sidebar-filter-row .btn-sm {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.filter-spacer {
+  flex: 1;
+}
+
+/* ==========================================
+   Batch action bar
+   ========================================== */
+.batch-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  margin: 0 12px 8px;
+  border-radius: 10px;
+  background: rgba(124, 58, 237, 0.15);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+}
+
+.batch-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.batch-count {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.batch-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ==========================================
+   Select checkbox
+   ========================================== */
+.select-checkbox {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+
+.media-item:hover .select-checkbox,
+.media-item.selected .select-checkbox {
+  opacity: 1;
+}
+
+.select-checkbox.checked {
+  color: var(--primary);
+  opacity: 1;
+}
+
+/* ==========================================
+   Grid view for sidebar
+   ========================================== */
+.media-list-container.grid-view {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.media-list-container.grid-view .media-item {
+  flex-direction: column;
+  align-items: center;
+  padding: 6px;
+  gap: 4px;
+}
+
+.media-list-container.grid-view .media-details {
+  text-align: center;
+  width: 100%;
+  padding-right: 0;
+}
+
+.media-list-container.grid-view .media-name {
+  font-size: 0.7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+.media-list-container.grid-view .media-meta {
+  font-size: 0.65rem;
+}
+
+.media-list-container.grid-view .select-checkbox,
+.media-list-container.grid-view .btn-favorite,
+.media-list-container.grid-view .btn-delete {
+  position: absolute;
+  top: 4px;
+}
+
+.media-list-container.grid-view .select-checkbox {
+  left: 4px;
+  top: 4px;
+  transform: none;
+}
+
+.media-list-container.grid-view .btn-favorite {
+  right: 24px;
+}
+
+.media-list-container.grid-view .btn-delete {
+  right: 4px;
+}
+
+.media-list-container.grid-view .media-item {
+  position: relative;
+}
+
+.media-list-container.grid-view .thumbnail-wrapper {
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+.media-list-container.grid-view .sidebar-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ==========================================
+   Metadata panel (EXIF)
+   ========================================== */
+.metadata-panel {
+  position: absolute;
+  top: 48px;
+  right: 16px;
+  width: 320px;
+  max-height: calc(100% - 80px);
+  overflow-y: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  z-index: 20;
+  padding: 16px;
+}
+
+.metadata-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.metadata-panel-header h4 {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metadata-panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.metadata-section {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 10px;
+}
+
+.metadata-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.metadata-section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.metadata-row.metadata-empty {
+  color: var(--text-muted);
+  font-style: italic;
+  border-bottom: none;
+}
+
+.metadata-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.8rem;
+}
+
+.metadata-row:last-child {
+  border-bottom: none;
+}
+
+.metadata-row svg {
+  color: var(--primary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.metadata-label {
+  color: var(--text-secondary);
+  min-width: 70px;
+  flex-shrink: 0;
+}
+
+.metadata-value {
+  color: var(--text-primary);
+  word-break: break-word;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gps-link {
+  color: var(--primary);
+  text-decoration: none;
+  font-size: 0.75rem;
+}
+
+.gps-link:hover {
+  text-decoration: underline;
 }
 
 /* ==========================================

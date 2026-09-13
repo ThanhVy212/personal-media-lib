@@ -13,6 +13,12 @@ import {
   File,
   ArrowUpDown,
   ImageIcon,
+  Heart,
+  Grid3X3,
+  List,
+  CheckSquare,
+  Square,
+  Download,
 } from "lucide-react";
 import { youtubeThumbnailUrl } from "../utils/mediaUrl.js";
 
@@ -29,6 +35,17 @@ export default function Sidebar({
   onSortAZ,
   onSortSimilar,
   isSortingSimilar,
+  onToggleFavorite,
+  selectedIds,
+  onToggleSelect,
+  onSelectAll,
+  onDeselectAll,
+  onBatchDelete,
+  onBatchDownload,
+  viewMode,
+  onViewModeChange,
+  filterMode,
+  onFilterModeChange,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const fileInputRef = useRef(null);
@@ -91,9 +108,15 @@ export default function Sidebar({
     e.target.value = ""; // Reset
   };
 
-  const filteredMedia = mediaList.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const filteredMedia = mediaList.filter((item) => {
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter = filterMode === "favorites" ? item.isFavorite : true;
+    return matchesSearch && matchesFilter;
+  });
+
+  const allVisibleSelected =
+    filteredMedia.length > 0 &&
+    filteredMedia.every((item) => selectedIds.has(item.id));
 
   return (
     <aside className={`sidebar glassmorphism ${isOpen ? "open" : "closed"}`}>
@@ -128,6 +151,37 @@ export default function Sidebar({
         <button className="btn btn-danger clear-btn" onClick={onClearAll}>
           <Trash2 size={16} />
           <span>Clear All</span>
+        </button>
+      </div>
+
+      <div className="sidebar-filter-row">
+        <button
+          className={`btn btn-sm ${filterMode === "all" ? "btn-active-tab" : "btn-secondary"}`}
+          onClick={() => onFilterModeChange("all")}
+        >
+          All
+        </button>
+        <button
+          className={`btn btn-sm ${filterMode === "favorites" ? "btn-active-tab" : "btn-secondary"}`}
+          onClick={() => onFilterModeChange("favorites")}
+        >
+          <Heart size={14} />
+          Favorites
+        </button>
+        <div className="filter-spacer"></div>
+        <button
+          className={`btn btn-icon btn-secondary btn-sm ${viewMode === "grid" ? "btn-active-tab" : ""}`}
+          onClick={() => onViewModeChange("grid")}
+          data-tooltip="Grid View"
+        >
+          <Grid3X3 size={14} />
+        </button>
+        <button
+          className={`btn btn-icon btn-secondary btn-sm ${viewMode === "list" ? "btn-active-tab" : ""}`}
+          onClick={() => onViewModeChange("list")}
+          data-tooltip="List View"
+        >
+          <List size={14} />
         </button>
       </div>
 
@@ -178,21 +232,56 @@ export default function Sidebar({
         </button>
       </div>
 
-      <div className="media-list-container">
+      {selectedIds.size > 0 && (
+        <div className="batch-action-bar animate-fade-in">
+          <div className="batch-left">
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={allVisibleSelected ? onDeselectAll : onSelectAll}
+            >
+              {allVisibleSelected ? "Deselect All" : "Select All"}
+            </button>
+            <span className="batch-count">{selectedIds.size} selected</span>
+          </div>
+          <div className="batch-right">
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={onBatchDownload}
+              data-tooltip="Download selected"
+            >
+              <Download size={14} />
+            </button>
+            <button
+              className="btn btn-danger btn-sm"
+              onClick={onBatchDelete}
+              data-tooltip="Delete selected"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className={`media-list-container ${viewMode === "grid" ? "grid-view" : "list-view"}`}>
         {filteredMedia.length === 0 ? (
           <div className="empty-search">
-            {searchQuery ? "No files match search" : "No files uploaded"}
+            {searchQuery
+              ? "No files match search"
+              : filterMode === "favorites"
+                ? "No favorites yet"
+                : "No files uploaded"}
           </div>
         ) : (
           filteredMedia.map((item) => {
             const listIndex = mediaList.findIndex((m) => m.id === item.id);
             const isActive = listIndex === activeIndex;
             const isUploading = item.status === "uploading";
+            const isSelected = selectedIds.has(item.id);
 
             return (
               <div
                 key={item.id}
-                className={`media-item ${isActive ? "active" : ""} ${isUploading ? "uploading animate-pulse-border" : ""} ${draggedIndex === listIndex ? "dragging" : ""}`}
+                className={`media-item ${isActive ? "active" : ""} ${isUploading ? "uploading animate-pulse-border" : ""} ${draggedIndex === listIndex ? "dragging" : ""} ${isSelected ? "selected" : ""}`}
                 onClick={() => onSelect(listIndex)}
                 draggable={!isUploading}
                 onDragStart={(e) => handleDragStart(e, listIndex)}
@@ -200,6 +289,16 @@ export default function Sidebar({
                 onDrop={(e) => handleDrop(e, listIndex)}
                 onDragEnd={handleDragEnd}
               >
+                <button
+                  className={`select-checkbox ${isSelected ? "checked" : ""}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleSelect(item.id);
+                  }}
+                >
+                  {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+                </button>
+
                 <div className="thumbnail-wrapper">
                   {isUploading ? (
                     <div className="sidebar-uploading-spinner-container">
@@ -305,16 +404,28 @@ export default function Sidebar({
                 </div>
 
                 {!isUploading && (
-                  <button
-                    className="btn-delete"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(listIndex);
-                    }}
-                    title="Remove file"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <>
+                    <button
+                      className={`btn-favorite ${item.isFavorite ? "active" : ""}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleFavorite(item.id);
+                      }}
+                      title={item.isFavorite ? "Remove from favorites" : "Add to favorites"}
+                    >
+                      <Heart size={14} fill={item.isFavorite ? "currentColor" : "none"} />
+                    </button>
+                    <button
+                      className="btn-delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(listIndex);
+                      }}
+                      title="Remove file"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </>
                 )}
               </div>
             );
