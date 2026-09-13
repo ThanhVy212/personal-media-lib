@@ -2503,7 +2503,6 @@
 .media-list-container.grid-view .btn-delete {
   position: absolute;
   top: 4px;
-  opacity: 0;
 }
 
 .media-list-container.grid-view .select-checkbox {

@@ -335,9 +335,20 @@ export default function App() {
       const zip = new JSZip();
       const folder = zip.folder("personal-lib");
 
+      const usedNames = new Set();
       for (const item of downloadableFiles) {
         const blob = await fetch(item.url).then((res) => res.blob());
-        folder.file(item.name, blob);
+        let entryName = item.name;
+        if (usedNames.has(entryName)) {
+          const dotIndex = entryName.lastIndexOf(".");
+          const base = dotIndex !== -1 ? entryName.substring(0, dotIndex) : entryName;
+          const ext = dotIndex !== -1 ? entryName.substring(dotIndex) : "";
+          let counter = 2;
+          while (usedNames.has(`${base} (${counter})${ext}`)) counter++;
+          entryName = `${base} (${counter})${ext}`;
+        }
+        usedNames.add(entryName);
+        folder.file(entryName, blob);
       }
 
       const content = await zip.generateAsync({
@@ -495,6 +506,9 @@ export default function App() {
     )
       return;
 
+    const activeId =
+      typeof activeIndex === "number" ? mediaList[activeIndex]?.id : null;
+
     mediaList.forEach((item) => {
       if (selectedIds.has(item.id)) revokeMediaUrl(item);
     });
@@ -505,9 +519,11 @@ export default function App() {
 
     if (newList.length === 0) {
       setActiveIndex("upload");
-    } else if (typeof activeIndex === "number") {
-      const activeItem = mediaList[activeIndex];
-      if (activeItem && selectedIds.has(activeItem.id)) {
+    } else if (activeId) {
+      const stillExists = newList.some((item) => item.id === activeId);
+      if (stillExists) {
+        setActiveIndex(newList.findIndex((item) => item.id === activeId));
+      } else {
         setActiveIndex(Math.min(activeIndex, newList.length - 1));
       }
     }
@@ -534,9 +550,20 @@ export default function App() {
       const zip = new JSZip();
       const folder = zip.folder("selected-media");
 
+      const usedNames = new Set();
       for (const item of downloadable) {
         const blob = await fetch(item.url).then((res) => res.blob());
-        folder.file(item.name, blob);
+        let entryName = item.name;
+        if (usedNames.has(entryName)) {
+          const dotIndex = entryName.lastIndexOf(".");
+          const base = dotIndex !== -1 ? entryName.substring(0, dotIndex) : entryName;
+          const ext = dotIndex !== -1 ? entryName.substring(dotIndex) : "";
+          let counter = 2;
+          while (usedNames.has(`${base} (${counter})${ext}`)) counter++;
+          entryName = `${base} (${counter})${ext}`;
+        }
+        usedNames.add(entryName);
+        folder.file(entryName, blob);
       }
 
       const content = await zip.generateAsync({

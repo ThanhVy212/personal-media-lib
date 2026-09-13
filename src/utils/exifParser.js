@@ -1,4 +1,9 @@
+function inBounds(data, offset, length) {
+  return offset >= 0 && length > 0 && offset + length <= data.length;
+}
+
 function readUint16(data, offset, littleEndian) {
+  if (!inBounds(data, offset, 2)) return null;
   if (littleEndian) {
     return data[offset] | (data[offset + 1] << 8);
   }
@@ -6,6 +11,7 @@ function readUint16(data, offset, littleEndian) {
 }
 
 function readUint32(data, offset, littleEndian) {
+  if (!inBounds(data, offset, 4)) return null;
   if (littleEndian) {
     return data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24);
   }
@@ -13,6 +19,7 @@ function readUint32(data, offset, littleEndian) {
 }
 
 function readAscii(data, offset, length) {
+  if (!inBounds(data, offset, length)) return null;
   let s = "";
   for (let i = 0; i < length; i++) {
     s += String.fromCharCode(data[offset + i]);
@@ -41,6 +48,7 @@ const EXIF_TAGS = {
   0x0132: "Date Modified",
   0x0213: "YCbCr Positioning",
   0x8769: "Exif IFD Pointer",
+  0x8825: "GPS IFD Pointer",
   0x829a: "Exposure Time",
   0x829d: "F-Number",
   0x8827: "ISO Speed",
@@ -77,21 +85,30 @@ const GPS_TAGS = {
   0x001d: "GPS Date Stamp",
 };
 
-function readIFDValue(data, entryOffset, type, count, littleEndian) {
+function readIFDValue(data, entryOffset, type, count, littleEndian, tiffOffset) {
   const typeInfo = TAG_TYPES[type];
   if (!typeInfo) return null;
 
+  if (!Number.isFinite(count) || count < 0) return null;
+
   const totalBytes = typeInfo.size * count;
+  if (!Number.isFinite(totalBytes) || totalBytes < 0) return null;
 
   let valueOffset;
   if (totalBytes <= 4) {
     valueOffset = entryOffset + 8;
   } else {
-    valueOffset = readUint32(data, entryOffset + 4, littleEndian);
+    const rawOffset = readUint32(data, entryOffset + 4, littleEndian);
+    if (rawOffset === null) return null;
+    valueOffset = tiffOffset + rawOffset;
   }
 
+  if (!Number.isFinite(valueOffset) || valueOffset < 0) return null;
+  if (!inBounds(data, valueOffset, totalBytes)) return null;
+
   if (type === 2) {
-    return readAscii(data, valueOffset, count - 1).trim();
+    const str = readAscii(data, valueOffset, count > 0 ? count - 1 : 0);
+    return str !== null ? str.trim() : null;
   }
 
   if (type === 3 && count === 1) {
@@ -103,17 +120,21 @@ function readIFDValue(data, entryOffset, type, count, littleEndian) {
   }
 
   if (type === 5 && count === 1) {
+    if (!inBounds(data, valueOffset, 8)) return null;
     const num = readUint32(data, valueOffset, littleEndian);
     const den = readUint32(data, valueOffset + 4, littleEndian);
+    if (num === null || den === null) return null;
     return den === 0 ? num : num / den;
   }
 
   if (type === 5 && count === 3) {
+    if (!inBounds(data, valueOffset, 24)) return null;
     const results = [];
     for (let i = 0; i < 3; i++) {
       const off = valueOffset + i * 8;
       const num = readUint32(data, off, littleEndian);
       const den = readUint32(data, off + 4, littleEndian);
+      if (num === null || den === null) return null;
       results.push(den === 0 ? num : num / den);
     }
     return results;
@@ -122,7 +143,9 @@ function readIFDValue(data, entryOffset, type, count, littleEndian) {
   if (type === 3 && count > 1) {
     const results = [];
     for (let i = 0; i < count; i++) {
-      results.push(readUint16(data, valueOffset + i * 2, littleEndian));
+      const v = readUint16(data, valueOffset + i * 2, littleEndian);
+      if (v === null) return null;
+      results.push(v);
     }
     return results;
   }
@@ -130,19 +153,25 @@ function readIFDValue(data, entryOffset, type, count, littleEndian) {
   return null;
 }
 
-function parseIFD(data, offset, littleEndian, tagMap) {
+function parseIFD(data, offset, littleEndian, tagMap, tiffOffset) {
   const results = {};
+  if (!inBounds(data, offset, 2)) return results;
+
   const count = readUint16(data, offset, littleEndian);
+  if (count === null || count < 0 || count > 1000) return results;
+
+  if (!inBounds(data, offset + 2, count * 12)) return results;
 
   for (let i = 0; i < count; i++) {
     const entryOffset = offset + 2 + i * 12;
     const tag = readUint16(data, entryOffset, littleEndian);
     const type = readUint16(data, entryOffset + 2, littleEndian);
     const count = readUint32(data, entryOffset + 4, littleEndian);
-    const tagName = tagMap[tag];
+    if (tag === null || type === null || count === null) continue;
 
+    const tagName = tagMap[tag];
     if (tagName) {
-      const value = readIFDValue(data, entryOffset, type, count, littleEndian);
+      const value = readIFDValue(data, entryOffset, type, count, littleEndian, tiffOffset);
       if (value !== null && value !== undefined) {
         results[tagName] = value;
       }
@@ -177,7 +206,7 @@ export async function extractExif(file) {
   const buffer = await file.arrayBuffer();
   const data = new Uint8Array(buffer);
 
-  if (data[0] !== 0xff || data[1] !== 0xd8) {
+  if (data.length < 4 || data[0] !== 0xff || data[1] !== 0xd8) {
     return null;
   }
 
@@ -190,39 +219,60 @@ export async function extractExif(file) {
     const marker = data[offset + 1];
 
     if (marker === 0xe1) {
+      if (offset + 4 > data.length) break;
       const segmentLength = readUint16(data, offset + 2, false);
+      if (segmentLength === null || segmentLength < 2) break;
+      const segmentEnd = offset + 2 + segmentLength;
+      if (segmentEnd > data.length) break;
+
+      if (offset + 10 > data.length) break;
       const header = readAscii(data, offset + 4, 6);
+      if (header === null) break;
+
       if (header.startsWith("Exif")) {
         const tiffOffset = offset + 10;
+        if (tiffOffset + 8 > data.length) break;
+
         const byteOrder = readUint16(data, tiffOffset, false);
+        if (byteOrder === null) break;
         littleEndian = byteOrder === 0x4949;
 
         const ifdOffset = readUint32(data, tiffOffset + 4, littleEndian);
+        if (ifdOffset === null) break;
 
-        const mainTags = parseIFD(data, tiffOffset + ifdOffset, littleEndian, EXIF_TAGS);
+        const absIfdOffset = tiffOffset + ifdOffset;
+        if (absIfdOffset < 0 || absIfdOffset >= data.length) break;
+
+        const mainTags = parseIFD(data, absIfdOffset, littleEndian, EXIF_TAGS, tiffOffset);
         exifData = { ...exifData, ...mainTags };
 
         if (mainTags["Exif IFD Pointer"]) {
-          const exifIFDOffset = mainTags["Exif IFD Pointer"];
-          const exifTags = parseIFD(data, tiffOffset + exifIFDOffset, littleEndian, EXIF_TAGS);
-          exifData = { ...exifData, ...exifTags };
-          delete exifData["Exif IFD Pointer"];
+          const exifIFDOffset = tiffOffset + mainTags["Exif IFD Pointer"];
+          if (exifIFDOffset >= 0 && exifIFDOffset < data.length) {
+            const exifTags = parseIFD(data, exifIFDOffset, littleEndian, EXIF_TAGS, tiffOffset);
+            exifData = { ...exifData, ...exifTags };
+            delete exifData["Exif IFD Pointer"];
+          }
         }
 
         if (mainTags["GPS IFD Pointer"]) {
-          const gpsIFDOffset = mainTags["GPS IFD Pointer"];
-          const gpsTags = parseIFD(data, tiffOffset + gpsIFDOffset, littleEndian, GPS_TAGS);
-          exifData = { ...exifData, ...gpsTags };
-          delete exifData["GPS IFD Pointer"];
+          const gpsIFDOffset = tiffOffset + mainTags["GPS IFD Pointer"];
+          if (gpsIFDOffset >= 0 && gpsIFDOffset < data.length) {
+            const gpsTags = parseIFD(data, gpsIFDOffset, littleEndian, GPS_TAGS, tiffOffset);
+            exifData = { ...exifData, ...gpsTags };
+            delete exifData["GPS IFD Pointer"];
+          }
         }
 
         break;
       }
-      offset += 2 + segmentLength;
+      offset = segmentEnd;
     } else if (marker === 0xda) {
       break;
     } else {
+      if (offset + 4 > data.length) break;
       const segmentLength = readUint16(data, offset + 2, false);
+      if (segmentLength === null || segmentLength < 2) break;
       offset += 2 + segmentLength;
     }
   }

@@ -81,11 +81,13 @@ export default function ImageViewer({
     setExifLoading(false);
     setMetaDims(null);
     if (file && isImage) {
+      let stale = false;
       setExifLoading(true);
       extractExif(file)
-        .then((data) => setExifData(data))
+        .then((data) => { if (!stale) setExifData(data); })
         .catch(() => {})
-        .finally(() => setExifLoading(false));
+        .finally(() => { if (!stale) setExifLoading(false); });
+      return () => { stale = true; };
     }
   }, [file, mimeType, src, isImage]);
 
@@ -100,14 +102,6 @@ export default function ImageViewer({
     const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]} (${bytes.toLocaleString()} bytes)`;
-  };
-
-  const formatFileSizeOnDisk = (bytes) => {
-    if (!bytes || bytes === 0) return "0 Bytes (0 bytes)";
-    const clusterSize = 4096;
-    const clusters = Math.ceil(bytes / clusterSize);
-    const onDisk = clusters * clusterSize;
-    return formatSize(onDisk);
   };
 
   const getFileExtension = (filename) => {
@@ -1024,32 +1018,16 @@ export default function ImageViewer({
                 </div>
               )}
               {file && (
-                <>
-                  <div className="metadata-row">
-                    <span className="metadata-label">Size:</span>
-                    <span className="metadata-value">{formatSize(file.size)}</span>
-                  </div>
-                  <div className="metadata-row">
-                    <span className="metadata-label">Size on disk:</span>
-                    <span className="metadata-value">{formatFileSizeOnDisk(file.size)}</span>
-                  </div>
-                </>
+                <div className="metadata-row">
+                  <span className="metadata-label">Size:</span>
+                  <span className="metadata-value">{formatSize(file.size)}</span>
+                </div>
               )}
               {file && file.lastModified && (
-                <>
-                  <div className="metadata-row">
-                    <span className="metadata-label">Created:</span>
-                    <span className="metadata-value">{new Date(file.lastModified).toLocaleString()}</span>
-                  </div>
-                  <div className="metadata-row">
-                    <span className="metadata-label">Modified:</span>
-                    <span className="metadata-value">{new Date(file.lastModified).toLocaleString()}</span>
-                  </div>
-                  <div className="metadata-row">
-                    <span className="metadata-label">Accessed:</span>
-                    <span className="metadata-value">{new Date().toLocaleString()}</span>
-                  </div>
-                </>
+                <div className="metadata-row">
+                  <span className="metadata-label">Modified:</span>
+                  <span className="metadata-value">{new Date(file.lastModified).toLocaleString()}</span>
+                </div>
               )}
             </div>
 
