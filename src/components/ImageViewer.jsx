@@ -3,6 +3,9 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
+  RotateCw,
+  FlipHorizontal,
+  FlipVertical,
   Maximize,
   Minimize,
   ChevronLeft,
@@ -12,11 +15,18 @@ import {
   X,
   Download,
   Sliders,
+  Heart,
+  Info,
 } from "lucide-react";
+import { extractExif } from "../utils/exifParser.js";
 
 export default function ImageViewer({
   src,
   name,
+  file,
+  mimeType,
+  isFavorite,
+  onToggleFavorite,
   onPrev,
   onNext,
   hasPrev,
@@ -52,6 +62,81 @@ export default function ImageViewer({
   const [watermarkScale, setWatermarkScale] = useState(15); // logo scale in %
   const [watermarkOpacity, setWatermarkOpacity] = useState(0.6);
   const [watermarkPos, setWatermarkPos] = useState("bottom-right"); // 'top-left', 'top-right', 'bottom-left', 'bottom-right', 'center'
+
+  // Rotation & flip states
+  const [rotation, setRotation] = useState(0);
+  const [flipH, setFlipH] = useState(false);
+  const [flipV, setFlipV] = useState(false);
+
+  // EXIF metadata
+  const [showMetadata, setShowMetadata] = useState(false);
+  const [exifData, setExifData] = useState(null);
+  const [exifLoading, setExifLoading] = useState(false);
+  const [metaDims, setMetaDims] = useState(null);
+  const isImage = mimeType && mimeType.startsWith("image/");
+
+  useEffect(() => {
+    setExifData(null);
+    setShowMetadata(false);
+    setExifLoading(false);
+    setMetaDims(null);
+    if (file && isImage) {
+      setExifLoading(true);
+      extractExif(file)
+        .then((data) => setExifData(data))
+        .catch(() => {})
+        .finally(() => setExifLoading(false));
+    }
+  }, [file, mimeType, src, isImage]);
+
+  const handleImageMetaLoad = (e) => {
+    const img = e.target;
+    setMetaDims({ width: img.naturalWidth, height: img.naturalHeight });
+  };
+
+  const formatSize = (bytes) => {
+    if (!bytes || bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]} (${bytes.toLocaleString()} bytes)`;
+  };
+
+  const formatFileSizeOnDisk = (bytes) => {
+    if (!bytes || bytes === 0) return "0 Bytes (0 bytes)";
+    const clusterSize = 4096;
+    const clusters = Math.ceil(bytes / clusterSize);
+    const onDisk = clusters * clusterSize;
+    return formatSize(onDisk);
+  };
+
+  const getFileExtension = (filename) => {
+    if (!filename) return "";
+    const dot = filename.lastIndexOf(".");
+    return dot !== -1 ? filename.substring(dot + 1).toUpperCase() : "";
+  };
+
+  const getMimeLabel = (mime) => {
+    if (!mime) return "Unknown";
+    const map = {
+      "image/jpeg": "JPEG Image",
+      "image/png": "PNG Image",
+      "image/gif": "GIF Image",
+      "image/webp": "WebP Image",
+      "image/svg+xml": "SVG Image",
+      "image/bmp": "BMP Image",
+      "image/tiff": "TIFF Image",
+      "video/mp4": "MP4 Video",
+      "video/webm": "WebM Video",
+      "video/quicktime": "MOV Video",
+      "audio/mpeg": "MP3 Audio",
+      "audio/wav": "WAV Audio",
+      "audio/ogg": "OGG Audio",
+      "application/pdf": "PDF Document",
+      "text/plain": "Text Document",
+    };
+    return map[mime] || mime;
+  };
 
   const handleExportWatermarkedImage = () => {
     const img = imageRef.current;
@@ -182,6 +267,10 @@ export default function ImageViewer({
     handleReset();
     setIsCropping(false);
     setIsWatermarking(false);
+    setRotation(0);
+    setFlipH(false);
+    setFlipV(false);
+    setShowMetadata(false);
   }, [src]);
 
   useEffect(() => {
@@ -454,7 +543,7 @@ export default function ImageViewer({
   const imageTransformStyle = isCropping
     ? undefined
     : {
-        transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+        transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale}) rotate(${rotation}deg) scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`,
         transition: isDragging
           ? "none"
           : "transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)",
@@ -528,6 +617,7 @@ export default function ImageViewer({
                 alt={name}
                 className="viewer-image"
                 onDoubleClick={handleReset}
+                onLoad={handleImageMetaLoad}
               />
               {isWatermarking && (
                 <div
@@ -676,6 +766,42 @@ export default function ImageViewer({
           >
             <Sliders size={18} />
           </button>
+          <button
+            className={`btn btn-icon btn-secondary ${isFavorite ? "btn-fav-active" : ""}`}
+            onClick={onToggleFavorite}
+            data-tooltip={isFavorite ? "Remove from favorites" : "Add to favorites"}
+          >
+            <Heart size={18} fill={isFavorite ? "currentColor" : "none"} />
+          </button>
+          <div className="controls-separator"></div>
+          <button
+            className="btn btn-icon btn-secondary"
+            onClick={() => setRotation((r) => (r + 90) % 360)}
+            data-tooltip="Rotate Right"
+          >
+            <RotateCw size={18} />
+          </button>
+          <button
+            className="btn btn-icon btn-secondary"
+            onClick={() => setRotation((r) => (r - 90 + 360) % 360)}
+            data-tooltip="Rotate Left"
+          >
+            <RotateCcw size={18} />
+          </button>
+          <button
+            className={`btn btn-icon btn-secondary ${flipH ? "btn-active-tab" : ""}`}
+            onClick={() => setFlipH((v) => !v)}
+            data-tooltip="Flip Horizontal"
+          >
+            <FlipHorizontal size={18} />
+          </button>
+          <button
+            className={`btn btn-icon btn-secondary ${flipV ? "btn-active-tab" : ""}`}
+            onClick={() => setFlipV((v) => !v)}
+            data-tooltip="Flip Vertical"
+          >
+            <FlipVertical size={18} />
+          </button>
           <div className="controls-separator"></div>
           <button
             className="btn btn-icon btn-secondary"
@@ -713,6 +839,15 @@ export default function ImageViewer({
           >
             {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
           </button>
+          {isImage && (
+            <button
+              className={`btn btn-icon btn-secondary ${showMetadata ? "btn-active-tab" : ""}`}
+              onClick={() => setShowMetadata((v) => !v)}
+              data-tooltip="EXIF Metadata"
+            >
+              <Info size={18} />
+            </button>
+          )}
           <div className="controls-separator"></div>
         </div>
       )}
@@ -857,6 +992,155 @@ export default function ImageViewer({
               <Download size={14} />
               <span>Xuất & Tải về</span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {showMetadata && (
+        <div className="metadata-panel glassmorphism animate-fade-in">
+          <div className="metadata-panel-header">
+            <h4>{name}</h4>
+            <button className="btn btn-icon btn-secondary btn-sm" onClick={() => setShowMetadata(false)}>
+              <X size={14} />
+            </button>
+          </div>
+          <div className="metadata-panel-content">
+            <div className="metadata-section">
+              <div className="metadata-section-title">General</div>
+              <div className="metadata-row">
+                <span className="metadata-label">Type of file:</span>
+                <span className="metadata-value">{getMimeLabel(mimeType)} (.{getFileExtension(name)})</span>
+              </div>
+              {file && (
+                <div className="metadata-row">
+                  <span className="metadata-label">Opens with:</span>
+                  <span className="metadata-value">Browser</span>
+                </div>
+              )}
+              {isImage && metaDims && (
+                <div className="metadata-row">
+                  <span className="metadata-label">Dimensions:</span>
+                  <span className="metadata-value">{metaDims.width} x {metaDims.height} pixels</span>
+                </div>
+              )}
+              {file && (
+                <>
+                  <div className="metadata-row">
+                    <span className="metadata-label">Size:</span>
+                    <span className="metadata-value">{formatSize(file.size)}</span>
+                  </div>
+                  <div className="metadata-row">
+                    <span className="metadata-label">Size on disk:</span>
+                    <span className="metadata-value">{formatFileSizeOnDisk(file.size)}</span>
+                  </div>
+                </>
+              )}
+              {file && file.lastModified && (
+                <>
+                  <div className="metadata-row">
+                    <span className="metadata-label">Created:</span>
+                    <span className="metadata-value">{new Date(file.lastModified).toLocaleString()}</span>
+                  </div>
+                  <div className="metadata-row">
+                    <span className="metadata-label">Modified:</span>
+                    <span className="metadata-value">{new Date(file.lastModified).toLocaleString()}</span>
+                  </div>
+                  <div className="metadata-row">
+                    <span className="metadata-label">Accessed:</span>
+                    <span className="metadata-value">{new Date().toLocaleString()}</span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {exifLoading && (
+              <div className="metadata-section">
+                <div className="metadata-section-title">EXIF</div>
+                <div className="metadata-row">
+                  <span className="metadata-value" style={{ fontStyle: "italic" }}>Loading...</span>
+                </div>
+              </div>
+            )}
+
+            {!exifLoading && exifData && (
+              <div className="metadata-section">
+                <div className="metadata-section-title">Details (EXIF)</div>
+                {exifData.cameraMake && (
+                  <div className="metadata-row">
+                    <span className="metadata-label">Camera:</span>
+                    <span className="metadata-value">{exifData.cameraMake} {exifData.cameraModel || ""}</span>
+                  </div>
+                )}
+                {exifData.lensModel && (
+                  <div className="metadata-row">
+                    <span className="metadata-label">Lens:</span>
+                    <span className="metadata-value">{exifData.lensModel}</span>
+                  </div>
+                )}
+                {exifData.dateOriginal && (
+                  <div className="metadata-row">
+                    <span className="metadata-label">Date taken:</span>
+                    <span className="metadata-value">{exifData.dateOriginal}</span>
+                  </div>
+                )}
+                {exifData.exposureTime && (
+                  <div className="metadata-row">
+                    <span className="metadata-label">Exposure:</span>
+                    <span className="metadata-value">{exifData.exposureTime} | {exifData.fNumber} | ISO {exifData.iso}</span>
+                  </div>
+                )}
+                {exifData.focalLength && (
+                  <div className="metadata-row">
+                    <span className="metadata-label">Focal length:</span>
+                    <span className="metadata-value">{exifData.focalLength} {exifData.focalLength35mm ? `(${exifData.focalLength35mm})` : ""}</span>
+                  </div>
+                )}
+                {exifData.orientation && (
+                  <div className="metadata-row">
+                    <span className="metadata-label">Orientation:</span>
+                    <span className="metadata-value">{exifData.orientation}</span>
+                  </div>
+                )}
+                {exifData.flash && (
+                  <div className="metadata-row">
+                    <span className="metadata-label">Flash:</span>
+                    <span className="metadata-value">{exifData.flash}</span>
+                  </div>
+                )}
+                {exifData.software && (
+                  <div className="metadata-row">
+                    <span className="metadata-label">Software:</span>
+                    <span className="metadata-value">{exifData.software}</span>
+                  </div>
+                )}
+                {exifData.gps && (
+                  <div className="metadata-row">
+                    <span className="metadata-label">GPS:</span>
+                    <span className="metadata-value">
+                      {exifData.gps.lat}, {exifData.gps.lng}
+                      <a href={exifData.gps.url} target="_blank" rel="noopener noreferrer" className="gps-link">
+                        View Map
+                      </a>
+                    </span>
+                  </div>
+                )}
+                {exifData.gpsAltitude && (
+                  <div className="metadata-row">
+                    <span className="metadata-label">Altitude:</span>
+                    <span className="metadata-value">{exifData.gpsAltitude}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!exifLoading && !exifData && isImage && (
+              <div className="metadata-section">
+                <div className="metadata-section-title">Details (EXIF)</div>
+                <div className="metadata-row metadata-empty">
+                  <span className="metadata-value">No EXIF data found.</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

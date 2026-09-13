@@ -46,6 +46,9 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const toastTimeoutRef = useRef(null);
   const [isSortingSimilar, setIsSortingSimilar] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [viewMode, setViewMode] = useState("list");
+  const [filterMode, setFilterMode] = useState("all");
 
   const mediaListRef = useRef(mediaList);
   useEffect(() => {
@@ -449,6 +452,110 @@ export default function App() {
     }
   };
 
+  const handleToggleFavorite = (id) => {
+    setMediaList((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, isFavorite: !item.isFavorite } : item,
+      ),
+    );
+  };
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    const visibleIds = mediaList
+      .filter((item) => {
+        if (filterMode === "favorites") return item.isFavorite;
+        return true;
+      })
+      .map((item) => item.id);
+    setSelectedIds(new Set(visibleIds));
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedIds.size === 0) return;
+    if (
+      !window.confirm(
+        `Delete ${selectedIds.size} selected file${selectedIds.size > 1 ? "s" : ""}?`,
+      )
+    )
+      return;
+
+    mediaList.forEach((item) => {
+      if (selectedIds.has(item.id)) revokeMediaUrl(item);
+    });
+
+    const newList = mediaList.filter((item) => !selectedIds.has(item.id));
+    setMediaList(newList);
+    setSelectedIds(new Set());
+
+    if (newList.length === 0) {
+      setActiveIndex("upload");
+    } else if (typeof activeIndex === "number") {
+      const activeItem = mediaList[activeIndex];
+      if (activeItem && selectedIds.has(activeItem.id)) {
+        setActiveIndex(Math.min(activeIndex, newList.length - 1));
+      }
+    }
+
+    showToast(`Deleted ${selectedIds.size} file${selectedIds.size > 1 ? "s" : ""}`, "info");
+  };
+
+  const handleBatchDownload = async () => {
+    const downloadable = mediaList.filter(
+      (item) => selectedIds.has(item.id) && item.file && item.status === "completed",
+    );
+
+    if (downloadable.length === 0) {
+      showToast("No downloadable files selected", "info");
+      return;
+    }
+
+    showToast(
+      `Zipping ${downloadable.length} file${downloadable.length > 1 ? "s" : ""}...`,
+      "info",
+    );
+
+    try {
+      const zip = new JSZip();
+      const folder = zip.folder("selected-media");
+
+      for (const item of downloadable) {
+        const blob = await fetch(item.url).then((res) => res.blob());
+        folder.file(item.name, blob);
+      }
+
+      const content = await zip.generateAsync({
+        type: "blob",
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 },
+      });
+
+      saveAs(content, "selected-media.zip");
+      showToast(
+        `Downloaded ${downloadable.length} file${downloadable.length > 1 ? "s" : ""}`,
+        "success",
+      );
+    } catch (err) {
+      console.error("Error creating zip:", err);
+      showToast("Error creating zip: " + err.message, "info");
+    }
+  };
+
   const activeMedia =
     activeIndex !== null &&
     activeIndex !== "upload" &&
@@ -558,6 +665,17 @@ export default function App() {
           onSortAZ={handleSortAZ}
           onSortSimilar={handleSortSimilar}
           isSortingSimilar={isSortingSimilar}
+          onToggleFavorite={handleToggleFavorite}
+          selectedIds={selectedIds}
+          onToggleSelect={handleToggleSelect}
+          onSelectAll={handleSelectAll}
+          onDeselectAll={handleDeselectAll}
+          onBatchDelete={handleBatchDelete}
+          onBatchDownload={handleBatchDownload}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          filterMode={filterMode}
+          onFilterModeChange={setFilterMode}
         />
 
         <main className="app-viewport">
@@ -619,6 +737,10 @@ export default function App() {
               <ImageViewer
                 src={activeMedia.url}
                 name={activeMedia.name}
+                file={activeMedia.file}
+                mimeType={activeMedia.mimeType}
+                isFavorite={activeMedia.isFavorite}
+                onToggleFavorite={() => handleToggleFavorite(activeMedia.id)}
                 onPrev={handlePrev}
                 onNext={handleNext}
                 hasPrev={activeIndex !== "upload" && activeIndex > 0}
