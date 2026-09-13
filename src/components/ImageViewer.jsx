@@ -10,19 +10,9 @@ import {
   Crop,
   Check,
   X,
-  Languages,
-  Loader2,
-  Eye,
-  EyeOff,
-  KeyRound,
   Download,
   Sliders,
 } from "lucide-react";
-import {
-  translateImageRegions,
-  getOpenAiApiKey,
-} from "../utils/openaiTranslate.js";
-import TranslateApiKeyModal from "./TranslateApiKeyModal.jsx";
 
 export default function ImageViewer({
   src,
@@ -51,11 +41,6 @@ export default function ImageViewer({
 
   const containerRef = useRef(null);
   const imageRef = useRef(null);
-
-  const [translationRegions, setTranslationRegions] = useState([]);
-  const [showTranslation, setShowTranslation] = useState(false);
-  const [isTranslating, setIsTranslating] = useState(false);
-  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
 
   // Watermarking states
   const [isWatermarking, setIsWatermarking] = useState(false);
@@ -197,8 +182,6 @@ export default function ImageViewer({
     handleReset();
     setIsCropping(false);
     setIsWatermarking(false);
-    setTranslationRegions([]);
-    setShowTranslation(false);
   }, [src]);
 
   useEffect(() => {
@@ -468,35 +451,6 @@ export default function ImageViewer({
 
   const scalePercent = Math.round(scale * 100);
 
-  const runTranslate = async () => {
-    if (!getOpenAiApiKey()) {
-      setShowApiKeyModal(true);
-      return;
-    }
-    setIsTranslating(true);
-    try {
-      const regions = await translateImageRegions(src);
-      setTranslationRegions(regions);
-      setShowTranslation(regions.length > 0);
-      if (regions.length === 0) {
-        onToast?.("Không tìm thấy chữ để dịch trên ảnh này.", "info");
-      } else {
-        onToast?.(
-          `Đã dịch ${regions.length} vùng chữ sang tiếng Việt.`,
-          "success",
-        );
-      }
-    } catch (err) {
-      if (err.message === "MISSING_API_KEY") {
-        setShowApiKeyModal(true);
-      } else {
-        onToast?.(err.message || "Dịch thất bại.", "info");
-      }
-    } finally {
-      setIsTranslating(false);
-    }
-  };
-
   const imageTransformStyle = isCropping
     ? undefined
     : {
@@ -595,26 +549,6 @@ export default function ImageViewer({
                       />
                     )
                   )}
-                </div>
-              )}
-              {showTranslation && translationRegions.length > 0 && (
-                <div className="translation-overlay-layer">
-                  {translationRegions.map((region, index) => (
-                    <div
-                      key={`${region.x}-${region.y}-${index}`}
-                      className="translation-bubble"
-                      style={{
-                        left: `${region.x}%`,
-                        top: `${region.y}%`,
-                        width: `${region.width}%`,
-                        height: `${region.height}%`,
-                      }}
-                    >
-                      <span className="translation-bubble-text">
-                        {region.translated}
-                      </span>
-                    </div>
-                  ))}
                 </div>
               )}
             </div>
@@ -780,35 +714,6 @@ export default function ImageViewer({
             {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
           </button>
           <div className="controls-separator"></div>
-          <button
-            className="btn btn-icon btn-secondary"
-            onClick={() => setShowApiKeyModal(true)}
-            data-tooltip="OpenAI API key"
-          >
-            <KeyRound size={18} />
-          </button>
-          {translationRegions.length > 0 && (
-            <button
-              className={`btn btn-icon btn-secondary ${showTranslation ? "btn-active-translate" : ""}`}
-              onClick={() => setShowTranslation((v) => !v)}
-              data-tooltip={showTranslation ? "Ẩn bản dịch" : "Hiện bản dịch"}
-            >
-              {showTranslation ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          )}
-          <button
-            className="btn btn-primary translate-action-btn"
-            onClick={runTranslate}
-            disabled={isTranslating}
-            data-tooltip="Dịch chữ trên ảnh (EN → VI)"
-          >
-            {isTranslating ? (
-              <Loader2 size={18} className="spin-icon" />
-            ) : (
-              <Languages size={18} />
-            )}
-            <span>{isTranslating ? "Đang dịch…" : "Dịch"}</span>
-          </button>
         </div>
       )}
 
@@ -954,13 +859,6 @@ export default function ImageViewer({
             </button>
           </div>
         </div>
-      )}
-
-      {showApiKeyModal && (
-        <TranslateApiKeyModal
-          onClose={() => setShowApiKeyModal(false)}
-          onSaved={() => onToast?.("Đã lưu API key.", "success")}
-        />
       )}
     </div>
   );

@@ -118,7 +118,7 @@ export default function UploadZone({ onFilesSelected, onAddMediaLink, mediaList 
 
         <div className="security-notice">
           <FileText size={12} />
-          <span>Files stay local in the browser. Translation sends the image to OpenAI; video links stream from their source.</span>
+          <span>Files stay local in the browser. Video links stream from their source.</span>
         </div>
       </div>
 
