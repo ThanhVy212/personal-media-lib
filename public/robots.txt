@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Disallow private/authenticated application routes
+Disallow: /dashboard
+Disallow: /media
+Disallow: /files
+Disallow: /library
+Disallow: /profile
+Disallow: /settings
+Disallow: /too-fast
+
+Sitemap: https://personal-media-lib.tvyjesc.online/sitemap.xml

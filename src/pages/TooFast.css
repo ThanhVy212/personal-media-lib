@@ -1,0 +1,166 @@
+.toofast-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  padding: 24px;
+  background: radial-gradient(
+    circle at center,
+    var(--bg-card) 0%,
+    var(--bg-darker) 100%
+  );
+}
+
+.toofast-card {
+  width: 100%;
+  max-width: 440px;
+  padding: 48px 36px;
+  border-radius: 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border);
+  background: rgba(24, 27, 40, 0.6);
+}
+
+.toofast-icon-container {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger);
+  margin-bottom: 24px;
+  transition: var(--transition-smooth);
+  animation: pulseBorder 2s infinite ease-in-out;
+}
+
+.toofast-card:hover .toofast-icon-container {
+  transform: scale(1.08);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+}
+
+.toofast-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.toofast-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  letter-spacing: -0.025em;
+  background: linear-gradient(
+    135deg,
+    var(--text-primary) 30%,
+    var(--danger) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.toofast-message {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 360px;
+  margin-bottom: 32px;
+}
+
+.toofast-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.toofast-timer-ring {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toofast-timer-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.timer-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.05);
+  stroke-width: 6;
+}
+
+.timer-fg {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+
+.toofast-countdown {
+  position: absolute;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.toofast-timer-text {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.toofast-back-btn {
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.toofast-back-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.toofast-back-btn:disabled:hover {
+  background-color: var(--primary);
+}
+
+@media (max-width: 480px) {
+  .toofast-card {
+    padding: 36px 24px;
+  }
+
+  .toofast-title {
+    font-size: 1.35rem;
+  }
+
+  .toofast-message {
+    font-size: 0.875rem;
+  }
+
+  .toofast-icon-container {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+  }
+
+  .toofast-icon {
+    width: 28px;
+    height: 28px;
+  }
+}
