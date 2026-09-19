@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Routes, Route } from "react-router-dom";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import UploadZone from "./components/UploadZone";
@@ -9,6 +10,7 @@ import YouTubePlayer from "./components/YouTubePlayer";
 import ImageComparer from "./components/ImageComparer";
 import AudioPlayer from "./components/AudioPlayer";
 import DocumentViewer from "./components/DocumentViewer";
+import TooFast from "./pages/TooFast";
 import {
   Menu,
   FolderOpen,
@@ -591,7 +593,12 @@ export default function App() {
       : null;
 
   return (
-    <div className="app-container">
+    <Routes>
+      <Route path="/too-fast" element={<TooFast />} />
+      <Route
+        path="*"
+        element={
+          <div className="app-container">
       {/* Top Header Bar */}
       <header className="app-header glassmorphism">
         <div className="logo-section">
@@ -842,5 +849,8 @@ export default function App() {
         </div>
       )}
     </div>
+        }
+      />
+    </Routes>
   );
 }
